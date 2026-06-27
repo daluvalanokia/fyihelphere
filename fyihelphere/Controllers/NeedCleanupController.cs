@@ -29,15 +29,59 @@ namespace fyihelphere.Controllers
         // ─────────────────────────────────────────────────────────
         // Shared recipient list — edit emails/phones here
         // ─────────────────────────────────────────────────────────
-        public List<RecipientOption> GetRecipients() => new()
+        // ── ROAD recipients (transportation/public works departments) ──
+        public List<RecipientOption> GetRoadRecipients() => new()
         {
-            new() { Value = "city_roads",    Label = "City Road Maintenance",          DeptShort = "Road Maintenance",  Email = "roads@city.gov",         Phone = "+18005550101", Type = "both", Icon = "fa-road",                   Color = "#e74c3c" },
-            new() { Value = "city_transport",Label = "City Transportation Dept",        DeptShort = "Transportation",    Email = "transport@city.gov",     Phone = "+18005550102", Type = "both", Icon = "fa-traffic-light",          Color = "#f39c12" },
-            new() { Value = "county_roads",  Label = "County Road Department",          DeptShort = "County Roads",      Email = "county.roads@county.gov",Phone = "+18005550103", Type = "both", Icon = "fa-map-road",               Color = "#8e44ad" },
-            new() { Value = "state_dot",     Label = "State Dept of Transportation",    DeptShort = "State DOT",         Email = "dot@state.gov",          Phone = "+18005550104", Type = "both", Icon = "fa-signs-post",             Color = "#2c3e50" },
-            new() { Value = "public_works",  Label = "Public Works Department",         DeptShort = "Public Works",      Email = "publicworks@city.gov",   Phone = "+18005550105", Type = "both", Icon = "fa-helmet-safety",          Color = "#27ae60" },
-            new() { Value = "test_email",    Label = "Testing (daluvalamvc@gmail.com)", DeptShort = "Test",              Email = "daluvalamvc@gmail.com",  Phone = null,           Type = "email",Icon = "fa-flask",                  Color = "#16a085" },
+            new() { Value = "city_roads",     Label = "City Road Maintenance",         DeptShort = "Road Maintenance", Email = "roads@city.gov",          Phone = "+18005550101", Type = "both",  Icon = "fa-road",            Color = "#e74c3c" },
+            new() { Value = "city_transport", Label = "City Transportation Dept",       DeptShort = "Transportation",   Email = "transport@city.gov",      Phone = "+18005550102", Type = "both",  Icon = "fa-traffic-light",   Color = "#f39c12" },
+            new() { Value = "county_roads",   Label = "County Road Department",         DeptShort = "County Roads",     Email = "county.roads@county.gov", Phone = "+18005550103", Type = "both",  Icon = "fa-signs-post",      Color = "#8e44ad" },
+            new() { Value = "state_dot",      Label = "State Dept of Transportation",   DeptShort = "State DOT",        Email = "dot@state.gov",           Phone = "+18005550104", Type = "both",  Icon = "fa-map",             Color = "#2c3e50" },
+            new() { Value = "public_works",   Label = "Public Works Department",        DeptShort = "Public Works",     Email = "publicworks@city.gov",    Phone = "+18005550105", Type = "both",  Icon = "fa-helmet-safety",   Color = "#27ae60" },
+            new() { Value = "test_email",     Label = "Testing (daluvalamvc@gmail.com)",DeptShort = "Test",             Email = "daluvalamvc@gmail.com",   Phone = null,           Type = "email", Icon = "fa-flask",           Color = "#16a085" },
         };
+
+        // ── BUSINESS recipients vary by sub-activity — BBB + relevant agency ──
+        public List<RecipientOption> GetBusinessRecipients(string subActivity) => subActivity switch
+        {
+            "Service" => new()
+            {
+                new() { Value = "bbb_service",    Label = "BBB — Service Complaint",          DeptShort = "BBB",              Email = "info@bbb.org",             Phone = "+18006862022", Type = "both",  Icon = "fa-star",            Color = "#003f7f" },
+                new() { Value = "consumer_svc",   Label = "Consumer Protection Office",       DeptShort = "Consumer Affairs", Email = "consumer@state.gov",       Phone = "+18005550201", Type = "both",  Icon = "fa-shield-halved",   Color = "#1a6b3c" },
+                new() { Value = "test_email",     Label = "Testing (daluvalamvc@gmail.com)",  DeptShort = "Test",             Email = "daluvalamvc@gmail.com",    Phone = null,           Type = "email", Icon = "fa-flask",           Color = "#16a085" },
+            },
+            "Treatment" => new()
+            {
+                new() { Value = "bbb_treatment",  Label = "BBB — Treatment / Medical",        DeptShort = "BBB",              Email = "medical@bbb.org",          Phone = "+18006862022", Type = "both",  Icon = "fa-star",            Color = "#003f7f" },
+                new() { Value = "health_dept",    Label = "State Health Department",          DeptShort = "Health Dept",      Email = "health@state.gov",         Phone = "+18005550202", Type = "both",  Icon = "fa-heart-pulse",     Color = "#c0392b" },
+                new() { Value = "med_board",      Label = "State Medical Board",              DeptShort = "Medical Board",    Email = "medboard@state.gov",       Phone = "+18005550203", Type = "both",  Icon = "fa-user-doctor",     Color = "#2980d9" },
+                new() { Value = "test_email",     Label = "Testing (daluvalamvc@gmail.com)",  DeptShort = "Test",             Email = "daluvalamvc@gmail.com",    Phone = null,           Type = "email", Icon = "fa-flask",           Color = "#16a085" },
+            },
+            "Billing" => new()
+            {
+                new() { Value = "bbb_billing",    Label = "BBB — Billing Dispute",            DeptShort = "BBB",              Email = "billing@bbb.org",          Phone = "+18006862022", Type = "both",  Icon = "fa-star",            Color = "#003f7f" },
+                new() { Value = "consumer_fin",   Label = "Consumer Financial Protection",    DeptShort = "CFPB",             Email = "cfpb@consumerfinance.gov", Phone = "+18554114357", Type = "both",  Icon = "fa-building-columns",Color = "#003366" },
+                new() { Value = "state_ag",       Label = "State Attorney General — Consumer",DeptShort = "State AG",         Email = "ag.consumer@state.gov",    Phone = "+18005550204", Type = "both",  Icon = "fa-scale-balanced",  Color = "#6a1b9a" },
+                new() { Value = "test_email",     Label = "Testing (daluvalamvc@gmail.com)",  DeptShort = "Test",             Email = "daluvalamvc@gmail.com",    Phone = null,           Type = "email", Icon = "fa-flask",           Color = "#16a085" },
+            },
+            "Reception" => new()
+            {
+                new() { Value = "bbb_reception",  Label = "BBB — Customer Experience",       DeptShort = "BBB",              Email = "info@bbb.org",             Phone = "+18006862022", Type = "both",  Icon = "fa-star",            Color = "#003f7f" },
+                new() { Value = "consumer_svc",   Label = "Consumer Protection Office",      DeptShort = "Consumer Affairs", Email = "consumer@state.gov",       Phone = "+18005550201", Type = "both",  Icon = "fa-shield-halved",   Color = "#1a6b3c" },
+                new() { Value = "test_email",     Label = "Testing (daluvalamvc@gmail.com)", DeptShort = "Test",             Email = "daluvalamvc@gmail.com",    Phone = null,           Type = "email", Icon = "fa-flask",           Color = "#16a085" },
+            },
+            _ => new()  // "Other" or unrecognized
+            {
+                new() { Value = "bbb_general",    Label = "BBB — General Business Complaint", DeptShort = "BBB",             Email = "info@bbb.org",             Phone = "+18006862022", Type = "both",  Icon = "fa-star",            Color = "#003f7f" },
+                new() { Value = "consumer_svc",   Label = "Consumer Protection Office",       DeptShort = "Consumer Affairs",Email = "consumer@state.gov",       Phone = "+18005550201", Type = "both",  Icon = "fa-shield-halved",   Color = "#1a6b3c" },
+                new() { Value = "test_email",     Label = "Testing (daluvalamvc@gmail.com)",  DeptShort = "Test",            Email = "daluvalamvc@gmail.com",    Phone = null,           Type = "email", Icon = "fa-flask",           Color = "#16a085" },
+            }
+        };
+
+        // ── Legacy shim keeps existing Review POST working ──
+        public List<RecipientOption> GetRecipients() => GetRoadRecipients();
+
+        public List<RecipientOption> GetAllRecipients(string category = "Road", string subActivity = "") =>
+            category == "Business" ? GetBusinessRecipients(subActivity) : GetRoadRecipients();
 
         // ─────────────────────────────────────────────────────────
         // STEP 1 — Camera / Photo capture
@@ -46,8 +90,19 @@ namespace fyihelphere.Controllers
         public IActionResult Index(double? lat, double? lng)
         {
             ViewBag.GoogleMapsApiKey = _settings.GoogleMapsApiKey;
-            ViewBag.Recipients = GetRecipients();
-            // Pre-fill coordinates passed from the navigation map
+            ViewBag.Recipients       = GetRecipients();                // Road (default)
+            ViewBag.RoadRecipients   = GetRoadRecipients();
+            // Serialize all business recipient sets as JSON for JS switching
+            var bizSets = new Dictionary<string, List<RecipientOption>>
+            {
+                ["Service"]   = GetBusinessRecipients("Service"),
+                ["Treatment"] = GetBusinessRecipients("Treatment"),
+                ["Billing"]   = GetBusinessRecipients("Billing"),
+                ["Reception"] = GetBusinessRecipients("Reception"),
+                ["Other"]     = GetBusinessRecipients("Other"),
+            };
+            ViewBag.BizRecipientsJson = System.Text.Json.JsonSerializer.Serialize(bizSets);
+            ViewBag.RoadRecipientsJson = System.Text.Json.JsonSerializer.Serialize(GetRoadRecipients());
             if (lat.HasValue && lng.HasValue)
             {
                 ViewBag.PrefilledLat = lat.Value;
@@ -68,10 +123,15 @@ namespace fyihelphere.Controllers
             string description, string issueType, string severity,
             string recipientDepartment,
             string? reporterEmail,
+            string? activityCategory,
+            string? businessSubActivity,
             IFormFile? photoFile)
         {
-            var recipients = GetRecipients();
-            var selected = recipients.FirstOrDefault(r => r.Value == recipientDepartment);
+            var category = activityCategory ?? "Road";
+            var subAct   = businessSubActivity ?? "";
+            var recipients = GetAllRecipients(category, subAct);
+            var selected = recipients.FirstOrDefault(r => r.Value == recipientDepartment)
+                        ?? GetRoadRecipients().FirstOrDefault(r => r.Value == recipientDepartment);
 
             var report = new CleanupReport
             {
@@ -83,6 +143,8 @@ namespace fyihelphere.Controllers
                 ZipCode = zipCode,
                 NearbyLandmark = nearbyLandmark,
                 Description = description,
+                ActivityCategory = category,
+                BusinessSubActivity = subAct,
                 IssueType = issueType,
                 Severity = severity,
                 RecipientDepartment = recipientDepartment,

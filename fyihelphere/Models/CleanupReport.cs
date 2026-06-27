@@ -19,6 +19,8 @@ namespace fyihelphere.Models
         [StringLength(2000)]
         public string Description { get; set; } = "";
 
+        public string ActivityCategory { get; set; } = "";   // Road | Business
+        public string BusinessSubActivity { get; set; } = ""; // Service | Treatment | Billing | Reception | Other
         public string IssueType { get; set; } = "";
         public string Severity { get; set; } = "medium";
 

@@ -2,6 +2,8 @@
     ViewData["Title"] = "Report Road Issue";
     var mapsKey = ViewBag.GoogleMapsApiKey as string ?? "";
     var recipients = ViewBag.Recipients as List<fyihelphere.Models.RecipientOption> ?? new();
+    var roadRecipientsJson = ViewBag.RoadRecipientsJson as string ?? "[]";
+    var bizRecipientsJson  = ViewBag.BizRecipientsJson  as string ?? "{}";
     var prefilledLat = ViewBag.PrefilledLat as double?;
     var prefilledLng = ViewBag.PrefilledLng as double?;
     bool hasPrefilledCoords = prefilledLat.HasValue && prefilledLng.HasValue;
@@ -114,6 +116,31 @@
 .notify-opt.active i { color:#e74c3c; }
 .notify-opt span { font-size:12px; font-weight:600; color:#888; }
 .notify-opt.active span { color:#e74c3c; }
+
+/* ── ACTIVITY SELECTOR ─────────────────────────── */
+  .activity-selector { display:flex; gap:10px; }
+  .activity-card { flex:1; border:2px solid #e8e8e8; border-radius:14px; padding:14px 10px; cursor:pointer; transition:all .2s; background:#fff; text-align:center; }
+  .activity-card:hover { border-color:#ccc; box-shadow:0 2px 10px rgba(0,0,0,.06); }
+  .activity-card.selected.road  { border-color:#e74c3c !important; background:#fff5f5; }
+  .activity-card.selected.biz   { border-color:#2980d9 !important; background:#f0f6ff; }
+  .activity-card .ac-icon  { font-size:28px; margin-bottom:6px; display:block; }
+  .activity-card .ac-label { font-size:13px; font-weight:700; color:#555; display:block; }
+  .activity-card .ac-sub   { font-size:11px; color:#bbb; display:block; margin-top:2px; }
+  .activity-card.selected .ac-label { color:#222; }
+  .sub-activity-wrap { margin-top:12px; display:none; }
+  .sub-activity-wrap.show { display:block; }
+  .sub-chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .sub-chip { border:1.5px solid #2980d9; border-radius:20px; padding:7px 16px; font-size:13px; font-weight:600; color:#2980d9; cursor:pointer; transition:all .2s; background:#fff; white-space:nowrap; display:flex; align-items:center; gap:6px; }
+  .sub-chip:hover { background:#f0f6ff; }
+  .sub-chip.selected { background:#2980d9; color:#fff; }
+  .biz-info-banner { margin-top:12px; background:linear-gradient(135deg,#1a3a6b,#2980d9); border-radius:12px; padding:12px 14px; display:none; align-items:center; gap:10px; }
+  .biz-info-banner.show { display:flex; }
+  .biz-info-banner i { color:rgba(255,255,255,.8); font-size:16px; }
+  .biz-info-banner span { font-size:12px; color:rgba(255,255,255,.85); line-height:1.4; }
+  .chip.biz-chip.selected { background:#2980d9; border-color:#2980d9; color:#fff; }
+  #dynamicRecipients.biz-mode .recipient-card.selected { border-color:#2980d9; background:#f0f6ff; }
+  #dynamicRecipients.biz-mode .recipient-card.selected .rc-check { background:#2980d9; border-color:#2980d9; }
+  .bbb-badge { display:inline-flex; align-items:center; gap:4px; background:#003f7f; color:#fff; border-radius:5px; padding:2px 6px; font-size:10px; font-weight:700; margin-left:4px; vertical-align:middle; }
 
 /* ── SUBMIT BAR ─────────────────────────── */
 .submit-bar { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:520px; background:#fff; border-top:1.5px solid #f0f0f0; padding:14px 20px; box-shadow:0 -4px 20px rgba(0,0,0,.1); z-index:30; }
@@ -235,98 +262,105 @@
     </div>
 
     <!-- ══════════════════════════════════════
-         SECTION 3 — ISSUE DETAILS
+         SECTION 3 — ACTIVITY TYPE + ISSUE DETAILS
     ══════════════════════════════════════ -->
     <div class="sec">
       <div class="sec-hdr">
         <div class="sec-num">3</div>
-        <div><h2>Issue Details</h2><p>What did you see?</p></div>
+        <div><h2>Activity Type</h2><p>What kind of issue are you reporting?</p></div>
       </div>
       <div class="sec-body">
-        <div class="field">
-          <label>Type of issue</label>
-          <div class="issue-chips">
-            <div class="chip" data-val="Pothole / Road Damage" onclick="selectChip(this)">🕳️ Pothole</div>
-            <div class="chip" data-val="Debris / Litter" onclick="selectChip(this)">🗑️ Debris</div>
-            <div class="chip" data-val="Fallen Tree / Branch" onclick="selectChip(this)">🌳 Fallen Tree</div>
-            <div class="chip" data-val="Dead Animal" onclick="selectChip(this)">⚠️ Dead Animal</div>
-            <div class="chip" data-val="Damaged Sign / Signal" onclick="selectChip(this)">🚧 Damaged Sign</div>
-            <div class="chip" data-val="Flooded Road" onclick="selectChip(this)">🌊 Flooding</div>
-            <div class="chip" data-val="Broken Guardrail" onclick="selectChip(this)">🛡️ Guardrail</div>
-            <div class="chip" data-val="Other" onclick="selectChip(this)">➕ Other</div>
+
+        <!-- ① Road vs Business selector -->
+        <div class="activity-selector">
+          <div class="activity-card road selected" id="actCard_road" onclick="selectActivity('Road')">
+            <span class="ac-icon">🛣️</span>
+            <span class="ac-label">Road Issue</span>
+            <span class="ac-sub">Potholes, debris,<br>signs, flooding</span>
+          </div>
+          <div class="activity-card biz" id="actCard_biz" onclick="selectActivity('Business')">
+            <span class="ac-icon">🏢</span>
+            <span class="ac-label">Business Issue</span>
+            <span class="ac-sub">Service, billing,<br>treatment, reception</span>
           </div>
         </div>
+        <input type="hidden" name="activityCategory" id="f_actcat" value="Road" />
+
+        <!-- ② Business sub-activity (shown only when Business selected) -->
+        <div class="sub-activity-wrap" id="subActivityWrap">
+          <label style="display:block;font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Business Activity</label>
+          <div class="sub-chips">
+            <div class="sub-chip" data-val="Service"   onclick="selectSubActivity(this)"><i class="fas fa-concierge-bell"></i> Service</div>
+            <div class="sub-chip" data-val="Treatment" onclick="selectSubActivity(this)"><i class="fas fa-heart-pulse"></i> Treatment</div>
+            <div class="sub-chip" data-val="Billing"   onclick="selectSubActivity(this)"><i class="fas fa-file-invoice-dollar"></i> Billing</div>
+            <div class="sub-chip" data-val="Reception" onclick="selectSubActivity(this)"><i class="fas fa-door-open"></i> Reception</div>
+            <div class="sub-chip" data-val="Other"     onclick="selectSubActivity(this)"><i class="fas fa-ellipsis"></i> Other</div>
+          </div>
+          <div class="biz-info-banner" id="bizInfoBanner">
+            <i class="fas fa-star"></i>
+            <span id="bizInfoText">Select a business activity above — contacts will update automatically with the right BBB office and regulatory agency.</span>
+          </div>
+          <input type="hidden" name="businessSubActivity" id="f_subact" value="" />
+        </div>
+
+        <!-- ③ Issue type chips — change based on activity -->
         <div class="field" style="margin-top:16px">
-          <label>Severity</label>
+          <label>Type of issue</label>
+          <div class="issue-chips" id="issueChipsContainer">
+            <!-- Populated by JS based on activity -->
+          </div>
+          <input type="hidden" name="issueType" id="f_issuetype" value="" />
+        </div>
+
+        <!-- ④ Severity -->
+        <div class="field" style="margin-top:16px">
+          <label>Severity / Priority</label>
           <div class="sev-grid">
-            <div class="sev-opt" data-sev="low" onclick="selectSev(this)">
-              <span class="sev-icon">🟡</span><div class="sev-name">Low</div>
-            </div>
-            <div class="sev-opt selected" data-sev="medium" onclick="selectSev(this)">
-              <span class="sev-icon">🟠</span><div class="sev-name">Medium</div>
-            </div>
-            <div class="sev-opt" data-sev="high" onclick="selectSev(this)">
-              <span class="sev-icon">🔴</span><div class="sev-name">High</div>
-            </div>
-            <div class="sev-opt" data-sev="critical" onclick="selectSev(this)">
-              <span class="sev-icon">🚨</span><div class="sev-name">Critical</div>
-            </div>
+            <div class="sev-opt" data-sev="low"      onclick="selectSev(this)"><span class="sev-icon">🟡</span><div class="sev-name">Low</div></div>
+            <div class="sev-opt selected" data-sev="medium"   onclick="selectSev(this)"><span class="sev-icon">🟠</span><div class="sev-name">Medium</div></div>
+            <div class="sev-opt" data-sev="high"     onclick="selectSev(this)"><span class="sev-icon">🔴</span><div class="sev-name">High</div></div>
+            <div class="sev-opt" data-sev="critical" onclick="selectSev(this)"><span class="sev-icon">🚨</span><div class="sev-name">Critical</div></div>
           </div>
         </div>
+
+        <!-- ⑤ Description -->
         <div class="field" style="margin-top:16px">
           <label>Describe the issue <span style="color:#e74c3c">*</span></label>
-          <textarea name="description" id="f_desc" placeholder="E.g. Large pothole blocking right lane, about 3 feet wide…" required minlength="10"></textarea>
-          <div class="hint">Be specific — size, lane affected, hazard level</div>
+          <textarea name="description" id="f_desc" placeholder="Describe what you observed…" required minlength="10"></textarea>
+          <div class="hint" id="descHint">Be specific — size, location, what happened</div>
         </div>
         <div class="field">
           <label>Your email <span style="color:#bbb;font-weight:400;text-transform:none;font-size:11px">(optional, for follow-up)</span></label>
           <input type="email" name="reporterEmail" placeholder="your@email.com" />
         </div>
+
       </div>
     </div>
 
     <!-- ══════════════════════════════════════
-         SECTION 4 — RECIPIENT
+         SECTION 4 — CONTACT / RECIPIENT
+         (dynamic — changes with activity)
     ══════════════════════════════════════ -->
     <div class="sec">
       <div class="sec-hdr">
         <div class="sec-num">4</div>
-        <div><h2>Send To</h2><p>Select the right department</p></div>
+        <div>
+          <h2 id="sec4Title">Send To</h2>
+          <p id="sec4Sub">Select the right department to notify</p>
+        </div>
       </div>
       <div class="sec-body">
-        <div class="recipient-list">
-          @foreach (var r in recipients)
-          {
-            var badgeClass = r.Type == "both" ? "both" : r.Type;
-            var badgeLabel = r.Type == "both" ? "Email + SMS" : r.Type.ToUpper();
-            <div class="recipient-card" data-val="@r.Value" data-type="@r.Type" data-email="@r.Email" data-phone="@(r.Phone ?? "")" onclick="selectRecipient(this)">
-              <div class="rc-icon" style="background:@r.Color"><i class="fas @r.Icon"></i></div>
-              <div class="rc-info">
-                <div class="rc-name">@r.Label</div>
-                <div class="rc-contact">
-                  @if (!string.IsNullOrEmpty(r.Email)) { <span><i class="fas fa-envelope" style="color:#4285F4"></i> @r.Email</span> }
-                  @if (!string.IsNullOrEmpty(r.Phone)) { <span><i class="fas fa-phone" style="color:#27ae60"></i> @r.Phone</span> }
-                </div>
-              </div>
-              <span class="rc-badge @badgeClass">@badgeLabel</span>
-              <div class="rc-check"><i class="fas fa-check" style="font-size:10px"></i></div>
-            </div>
-          }
+        <div class="recipient-list" id="dynamicRecipients">
+          <!-- Populated dynamically by JS -->
         </div>
 
         <div id="notifySection" style="display:none;margin-top:16px">
           <div class="field">
             <label>How to notify</label>
             <div class="notify-toggle">
-              <div class="notify-opt active" id="no-email" onclick="selectNotify('email')">
-                <i class="fas fa-envelope"></i><span>Email</span>
-              </div>
-              <div class="notify-opt" id="no-sms" onclick="selectNotify('sms')">
-                <i class="fas fa-comment-sms"></i><span>SMS</span>
-              </div>
-              <div class="notify-opt" id="no-both" onclick="selectNotify('both')">
-                <i class="fas fa-paper-plane"></i><span>Both</span>
-              </div>
+              <div class="notify-opt active" id="no-email" onclick="selectNotify('email')"><i class="fas fa-envelope"></i><span>Email</span></div>
+              <div class="notify-opt" id="no-sms" onclick="selectNotify('sms')"><i class="fas fa-comment-sms"></i><span>SMS</span></div>
+              <div class="notify-opt" id="no-both" onclick="selectNotify('both')"><i class="fas fa-paper-plane"></i><span>Both</span></div>
             </div>
           </div>
           <div style="background:#f0faf5;border-radius:10px;padding:12px 14px;font-size:12px;color:#2e7d32">
@@ -355,15 +389,174 @@
 
 @section Scripts {
 <script>
+// ── DATA FROM SERVER ──
 var lat=0, lng=0, locReady=false, photoReady=false, deptReady=false;
 var mapsKey='@mapsKey';
-// Pre-filled from navigation map (passed via query string)
 var prefilledLat = @(hasPrefilledCoords ? prefilledLat!.Value.ToString("F6", System.Globalization.CultureInfo.InvariantCulture) : "null");
 var prefilledLng = @(hasPrefilledCoords ? prefilledLng!.Value.ToString("F6", System.Globalization.CultureInfo.InvariantCulture) : "null");
 
-// ── LOCATION ─────────────────────────────────────────
+// Recipient data sets passed from controller
+var ROAD_RECIPIENTS = @Html.Raw(roadRecipientsJson);
+var BIZ_RECIPIENTS  = @Html.Raw(bizRecipientsJson);
+
+// ── ACTIVITY STATE ──
+var currentActivity   = 'Road';   // 'Road' | 'Business'
+var currentSubActivity = '';
+
+// ── ISSUE CHIP DEFINITIONS ──
+var ROAD_CHIPS = [
+  { val:'Pothole / Road Damage',   label:'🕳️ Pothole' },
+  { val:'Debris / Litter',         label:'🗑️ Debris' },
+  { val:'Fallen Tree / Branch',    label:'🌳 Fallen Tree' },
+  { val:'Dead Animal',             label:'⚠️ Dead Animal' },
+  { val:'Damaged Sign / Signal',   label:'🚧 Damaged Sign' },
+  { val:'Flooded Road',            label:'🌊 Flooding' },
+  { val:'Broken Guardrail',        label:'🛡️ Guardrail' },
+  { val:'Other',                   label:'➕ Other' }
+];
+var BIZ_CHIPS = {
+  Service:   [{val:'Poor Service Quality',label:'👎 Poor Service'},{val:'No Response / Ignored',label:'🚫 No Response'},{val:'Unsafe Conditions',label:'⚠️ Unsafe'},{val:'Staff Misconduct',label:'😠 Misconduct'},{val:'Other',label:'➕ Other'}],
+  Treatment: [{val:'Incorrect Treatment',label:'💊 Wrong Treatment'},{val:'Negligence / Malpractice',label:'🏥 Negligence'},{val:'Unsanitary Conditions',label:'🧹 Unsanitary'},{val:'Delayed Treatment',label:'⏱️ Delayed'},{val:'Other',label:'➕ Other'}],
+  Billing:   [{val:'Overcharged / Wrong Amount',label:'💰 Overcharged'},{val:'Unauthorized Charge',label:'🚫 Unauth. Charge'},{val:'Billing Error',label:'📄 Billing Error'},{val:'Refund Not Issued',label:'↩️ No Refund'},{val:'Other',label:'➕ Other'}],
+  Reception: [{val:'Rude / Dismissive Staff',label:'😤 Rude Staff'},{val:'Long Wait Time',label:'⏰ Long Wait'},{val:'Misleading Information',label:'🤔 Misleading Info'},{val:'Access / Accommodation Issue',label:'♿ Access Issue'},{val:'Other',label:'➕ Other'}],
+  Other:     [{val:'General Complaint',label:'📝 General'},{val:'Safety Concern',label:'⚠️ Safety'},{val:'Privacy Issue',label:'🔒 Privacy'},{val:'Other',label:'➕ Other'}]
+};
+
+var SUB_BANNERS = {
+  Service:   'BBB Service complaints + Consumer Protection contacts loaded.',
+  Treatment: 'BBB Medical/Treatment complaints + State Health Dept + Medical Board loaded.',
+  Billing:   'BBB Billing disputes + CFPB + State Attorney General (Consumer) loaded.',
+  Reception: 'BBB Customer Experience + Consumer Protection contacts loaded.',
+  Other:     'BBB General Business complaints + Consumer Protection contacts loaded.'
+};
+
+// ── ACTIVITY SELECTION ──
+function selectActivity(type){
+  currentActivity = type;
+  currentSubActivity = '';
+  document.getElementById('f_actcat').value = type;
+  // Update activity cards
+  document.getElementById('actCard_road').classList.toggle('selected', type==='Road');
+  document.getElementById('actCard_biz').classList.toggle('selected',  type==='Business');
+  // Show/hide sub-activity panel
+  var wrap = document.getElementById('subActivityWrap');
+  wrap.classList.toggle('show', type==='Business');
+  if(type==='Business'){
+    document.querySelectorAll('.sub-chip').forEach(function(ch){ ch.classList.remove('selected'); });
+    document.getElementById('f_subact').value='';
+    document.getElementById('bizInfoBanner').classList.remove('show');
+  }
+  // Render issue chips
+  renderIssueChips();
+  // Render recipients
+  renderRecipients();
+  // Reset dept selection
+  deptReady=false;
+  document.getElementById('notifySection').style.display='none';
+  document.getElementById('f_dept').value='';
+  // Sec 4 heading
+  updateSec4Heading();
+  // Reset issue
+  document.getElementById('f_issuetype').value='';
+  checkReady();
+  // Desc placeholder
+  document.getElementById('f_desc').placeholder = type==='Road'
+    ? 'E.g. Large pothole blocking right lane, about 3 feet wide…'
+    : 'Describe what happened — staff name, date, what you experienced…';
+  document.getElementById('descHint').textContent = type==='Road'
+    ? 'Be specific — size, lane affected, hazard level'
+    : 'Include dates, names, amounts if applicable';
+}
+
+function selectSubActivity(el){
+  document.querySelectorAll('.sub-chip').forEach(function(c){ c.classList.remove('selected'); });
+  el.classList.add('selected');
+  currentSubActivity = el.dataset.val;
+  document.getElementById('f_subact').value = currentSubActivity;
+  // Show banner with context
+  var banner = document.getElementById('bizInfoBanner');
+  banner.classList.add('show');
+  document.getElementById('bizInfoText').textContent = SUB_BANNERS[currentSubActivity] || 'Contacts updated.';
+  // Refresh chips + recipients
+  renderIssueChips();
+  renderRecipients();
+  deptReady=false; document.getElementById('notifySection').style.display='none'; document.getElementById('f_dept').value='';
+  document.getElementById('f_issuetype').value='';
+  updateSec4Heading();
+  checkReady();
+}
+
+function renderIssueChips(){
+  var container = document.getElementById('issueChipsContainer');
+  var chips = currentActivity==='Road' ? ROAD_CHIPS
+    : (currentSubActivity && BIZ_CHIPS[currentSubActivity] ? BIZ_CHIPS[currentSubActivity] : []);
+  container.innerHTML='';
+  if(!chips.length){
+    container.innerHTML='<span style="font-size:13px;color:#bbb">Select a business activity above to see issue types.</span>';
+    return;
+  }
+  var isBiz = currentActivity==='Business';
+  chips.forEach(function(chip){
+    var d=document.createElement('div');
+    d.className='chip'+(isBiz?' biz-chip':'');
+    d.setAttribute('data-val',chip.val);
+    d.setAttribute('onclick','selectChip(this)');
+    d.textContent=chip.label;
+    container.appendChild(d);
+  });
+}
+
+function renderRecipients(){
+  var list = document.getElementById('dynamicRecipients');
+  list.classList.toggle('biz-mode', currentActivity==='Business');
+  var recs = currentActivity==='Road'
+    ? ROAD_RECIPIENTS
+    : (currentSubActivity && BIZ_RECIPIENTS[currentSubActivity] ? BIZ_RECIPIENTS[currentSubActivity] : []);
+  list.innerHTML='';
+  if(!recs.length){
+    list.innerHTML='<div style="text-align:center;padding:20px;color:#bbb;font-size:13px"><i class="fas fa-arrow-up" style="display:block;font-size:24px;margin-bottom:8px"></i>Select a business activity above to see contact options.</div>';
+    return;
+  }
+  recs.forEach(function(r){
+    var isBBB = r.Value && r.Value.startsWith('bbb');
+    var badgeClass = r.Type==='both'?'both':r.Type;
+    var badgeLabel = r.Type==='both'?'Email + SMS':r.Type.toUpperCase();
+    var bbbBadge = isBBB ? '<span class="bbb-badge"><i class="fas fa-star" style="font-size:9px"></i> BBB</span>' : '';
+    var emailHtml = r.Email ? '<span><i class="fas fa-envelope" style="color:#4285F4"></i> '+r.Email+'</span>' : '';
+    var phoneHtml = r.Phone ? '<span><i class="fas fa-phone" style="color:#27ae60"></i> '+r.Phone+'</span>' : '';
+    var card = document.createElement('div');
+    card.className='recipient-card';
+    card.setAttribute('data-val', r.Value);
+    card.setAttribute('data-type', r.Type);
+    card.setAttribute('data-email', r.Email||'');
+    card.setAttribute('data-phone', r.Phone||'');
+    card.setAttribute('onclick','selectRecipient(this)');
+    card.innerHTML =
+      '<div class="rc-icon" style="background:'+r.Color+'"><i class="fas '+r.Icon+'"></i></div>'+
+      '<div class="rc-info">'+
+        '<div class="rc-name">'+r.Label+bbbBadge+'</div>'+
+        '<div class="rc-contact">'+emailHtml+phoneHtml+'</div>'+
+      '</div>'+
+      '<span class="rc-badge '+badgeClass+'">'+badgeLabel+'</span>'+
+      '<div class="rc-check"><i class="fas fa-check" style="font-size:10px"></i></div>';
+    list.appendChild(card);
+  });
+}
+
+function updateSec4Heading(){
+  var title = document.getElementById('sec4Title');
+  var sub   = document.getElementById('sec4Sub');
+  if(currentActivity==='Business'){
+    title.textContent = currentSubActivity ? 'Contact: '+currentSubActivity+' Department' : 'Contact Department';
+    sub.textContent   = currentSubActivity ? 'BBB + regulatory contacts for '+currentSubActivity.toLowerCase()+' issues' : 'Select a business activity above first';
+  } else {
+    title.textContent = 'Send To';
+    sub.textContent   = 'Select the right transportation / public works department';
+  }
+}
+
+// ── LOCATION ──
 function startLocation(){
-  // If we already have coords from the nav map, use them instantly
   if(prefilledLat !== null && prefilledLng !== null){
     onLoc({ coords:{ latitude:prefilledLat, longitude:prefilledLng, accuracy:10 } });
     return;
@@ -380,15 +573,33 @@ function onLoc(p){
   setLocStatus('active','Location acquired');
   if(mapsKey && mapsKey.length>10) reverseGeocode(lat,lng);
   else {
-    document.getElementById('locAddress').textContent='Coordinates: '+lat.toFixed(5)+', '+lng.toFixed(5);
-    document.getElementById('locCity').textContent='(Add Google Maps API key for full address)';
-    locReady=true; checkReady();
+    // Use Nominatim (free)
+    fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+lat+'&lon='+lng+'&zoom=18&addressdetails=1',{headers:{'Accept-Language':'en-US,en'}})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var a=d.address||{};
+      var road=a.road||a.pedestrian||a.footway||'';
+      var house=a.house_number||'';
+      var city=a.city||a.town||a.village||a.suburb||a.county||'';
+      var state=a.state||''; var zip=a.postcode||'';
+      var fullAddr=(house?house+' ':'')+road;
+      document.getElementById('f_addr').value=fullAddr||d.display_name;
+      document.getElementById('f_city').value=city;
+      document.getElementById('f_state').value=state;
+      document.getElementById('f_zip').value=zip;
+      document.getElementById('locAddress').textContent=fullAddr||d.display_name.split(',')[0];
+      document.getElementById('locCity').textContent=[city,state,zip].filter(Boolean).join(', ');
+      locReady=true; checkReady();
+    })
+    .catch(function(){
+      document.getElementById('locAddress').textContent='Coordinates: '+lat.toFixed(5)+', '+lng.toFixed(5);
+      locReady=true; checkReady();
+    });
   }
 }
 
 function onLocErr(e){ setLocError('Could not get location — '+e.message); }
 function setLocError(msg){ setLocStatus('error',msg); document.getElementById('locAddress').textContent='Location unavailable'; }
-
 function setLocStatus(state,msg){
   var d=document.getElementById('locDot');
   d.className='loc-dot'+(state==='active'?' ':' waiting '+state);
@@ -397,12 +608,11 @@ function setLocStatus(state,msg){
 
 function reverseGeocode(la,lo){
   var url='https://maps.googleapis.com/maps/api/geocode/json?latlng='+la+','+lo+'&key='+mapsKey;
-  fetch(url).then(r=>r.json()).then(data=>{
+  fetch(url).then(function(r){ return r.json(); }).then(function(data){
     if(data.status==='OK'&&data.results[0]){
-      var res=data.results[0];
-      var addr=res.formatted_address;
+      var res=data.results[0]; var addr=res.formatted_address;
       var city='',state='',zip='';
-      res.address_components.forEach(c=>{
+      res.address_components.forEach(function(c){
         if(c.types.includes('locality')) city=c.long_name;
         if(c.types.includes('administrative_area_level_1')) state=c.short_name;
         if(c.types.includes('postal_code')) zip=c.long_name;
@@ -416,19 +626,19 @@ function reverseGeocode(la,lo){
       findLandmark(la,lo);
       locReady=true; checkReady();
     }
-  }).catch(()=>{ locReady=true; checkReady(); });
+  }).catch(function(){ locReady=true; checkReady(); });
 }
 
 function findLandmark(la,lo){
   var url='https://maps.googleapis.com/maps/api/place/nearbysearch/json?location='+la+','+lo+'&radius=300&type=establishment&key='+mapsKey;
-  fetch(url).then(r=>r.json()).then(d=>{
+  fetch(url).then(function(r){ return r.json(); }).then(function(d){
     if(d.status==='OK'&&d.results&&d.results.length>0){
       var lmk=d.results[0].name;
       document.getElementById('f_lmk').value=lmk;
       document.getElementById('locLandmarkText').textContent='Near: '+lmk;
       document.getElementById('locLandmark').style.display='flex';
     }
-  }).catch(()=>{});
+  }).catch(function(){});
 }
 
 function refreshLocation(){
@@ -436,56 +646,33 @@ function refreshLocation(){
   icon.style.animation='spin .7s linear infinite';
   setLocStatus('waiting','Refreshing…');
   locReady=false; checkReady();
-  navigator.geolocation.getCurrentPosition(function(p){
-    icon.style.animation='';
-    onLoc(p);
-    showToast('📍 Location updated');
-  }, function(e){
-    icon.style.animation='';
-    setLocError(e.message);
-  }, {enableHighAccuracy:true,timeout:10000});
+  navigator.geolocation.getCurrentPosition(function(p){ icon.style.animation=''; onLoc(p); showToast('📍 Location updated'); },
+    function(e){ icon.style.animation=''; setLocError(e.message); },{enableHighAccuracy:true,timeout:10000});
 }
 
-// ── PHOTO ─────────────────────────────────────────────
-function triggerCamera(){
-  var inp=document.getElementById('photoInput');
-  inp.setAttribute('capture','environment');
-  inp.click();
-}
+// ── PHOTO ──
+function triggerCamera(){ var inp=document.getElementById('photoInput'); inp.setAttribute('capture','environment'); inp.click(); }
 function triggerGallery(){ document.getElementById('galleryInput').click(); }
-
-function onPhotoSelected(inp){
-  if(inp.files&&inp.files[0]) showPhoto(inp.files[0]);
-}
+function onPhotoSelected(inp){ if(inp.files&&inp.files[0]) showPhoto(inp.files[0]); }
 function onGallerySelected(inp){
   if(inp.files&&inp.files[0]){
-    // copy file to main photoInput
-    var dt=new DataTransfer();
-    dt.items.add(inp.files[0]);
-    document.getElementById('photoInput').files=dt.files;
+    var dt=new DataTransfer(); dt.items.add(inp.files[0]); document.getElementById('photoInput').files=dt.files;
     showPhoto(inp.files[0]);
   }
 }
-
 function showPhoto(file){
   var reader=new FileReader();
   reader.onload=function(e){
-    var img=document.getElementById('photoPreview');
-    img.src=e.target.result;
-    img.style.display='block';
+    var img=document.getElementById('photoPreview'); img.src=e.target.result; img.style.display='block';
     document.querySelector('.cam-icon').style.display='none';
     document.querySelector('.cam-text').style.display='none';
     document.querySelector('.cam-hint').style.display='none';
-    var ps=document.getElementById('photoStatus');
-    ps.style.display='block';
+    var ps=document.getElementById('photoStatus'); ps.style.display='block';
     document.getElementById('photoStatusText').textContent='📷 '+file.name+' ('+Math.round(file.size/1024)+'KB)';
-    photoReady=true; checkReady();
-    showToast('✅ Photo captured');
-    updateStepPips();
+    photoReady=true; checkReady(); showToast('✅ Photo captured'); updateStepPips();
   };
   reader.readAsDataURL(file);
 }
-
 function retakePhoto(){
   document.getElementById('photoInput').value='';
   document.getElementById('photoPreview').style.display='none';
@@ -497,50 +684,49 @@ function retakePhoto(){
   photoReady=false; checkReady(); updateStepPips();
 }
 
-// ── ISSUE TYPE / SEVERITY ──────────────────────────────
+// ── ISSUE TYPE / SEVERITY ──
 function selectChip(el){
-  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('selected'));
+  document.querySelectorAll('#issueChipsContainer .chip').forEach(function(c){ c.classList.remove('selected'); });
   el.classList.add('selected');
   document.getElementById('f_issuetype').value=el.dataset.val;
   checkReady();
 }
-
 function selectSev(el){
-  document.querySelectorAll('.sev-opt').forEach(s=>s.classList.remove('selected'));
+  document.querySelectorAll('.sev-opt').forEach(function(s){ s.classList.remove('selected'); });
   el.classList.add('selected');
   document.getElementById('f_severity').value=el.dataset.sev;
 }
 
-// ── RECIPIENT ──────────────────────────────────────────
+// ── RECIPIENT ──
 function selectRecipient(el){
-  document.querySelectorAll('.recipient-card').forEach(c=>c.classList.remove('selected'));
+  document.querySelectorAll('.recipient-card').forEach(function(c){ c.classList.remove('selected'); });
   el.classList.add('selected');
   document.getElementById('f_dept').value=el.dataset.val;
   var type=el.dataset.type;
   document.getElementById('f_notify').value=type==='both'?'both':type;
-  // show notify toggle only if both is available
   document.getElementById('notifySection').style.display='block';
   if(type==='email'){ selectNotify('email'); document.getElementById('no-sms').style.display='none'; document.getElementById('no-both').style.display='none'; }
   else if(type==='sms'){ selectNotify('sms'); document.getElementById('no-email').style.display='none'; document.getElementById('no-both').style.display='none'; }
   else { document.getElementById('no-email').style.display=''; document.getElementById('no-sms').style.display=''; document.getElementById('no-both').style.display=''; selectNotify('both'); }
   deptReady=true; checkReady(); updateStepPips();
 }
-
 function selectNotify(v){
-  ['email','sms','both'].forEach(t=>document.getElementById('no-'+t).classList.toggle('active',t===v));
+  ['email','sms','both'].forEach(function(t){ document.getElementById('no-'+t).classList.toggle('active',t===v); });
   document.getElementById('f_notify').value=v;
 }
 
-// ── VALIDATION + SUBMIT ───────────────────────────────
+// ── VALIDATION ──
 function checkReady(){
   var desc=(document.getElementById('f_desc').value||'').trim();
-  var ok=photoReady && locReady && desc.length>=5 && deptReady;
+  var bizSubOk = currentActivity==='Road' || currentSubActivity!=='';
+  var ok=photoReady && locReady && desc.length>=5 && deptReady && bizSubOk;
   document.getElementById('reviewBtn').disabled=!ok;
   var notes=[];
-  if(!photoReady) notes.push('add a photo');
-  if(!locReady)   notes.push('wait for GPS');
+  if(!photoReady)   notes.push('add a photo');
+  if(!locReady)     notes.push('wait for GPS');
+  if(!bizSubOk)     notes.push('select a business activity');
   if(desc.length<5) notes.push('describe the issue');
-  if(!deptReady)  notes.push('select a department');
+  if(!deptReady)    notes.push('select a contact');
   document.getElementById('submitNote').textContent = ok
     ? '✅ Ready — tap Review & Send'
     : 'Still needed: '+notes.join(', ')+'.';
@@ -562,18 +748,17 @@ function mark(pip,line,done){
   var p=document.getElementById(pip), l=document.getElementById(line);
   if(done){ p.classList.remove('active'); p.classList.add('done'); if(l)l.classList.add('done'); }
 }
-
-// ── TOAST ─────────────────────────────────────────────
 function showToast(msg){
-  var t=document.getElementById('toast');
-  t.textContent=msg; t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2500);
+  var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); },2500);
 }
 
 document.getElementById('f_desc').addEventListener('input', checkReady);
 
-// Start on load
+// ── INIT ──
 window.addEventListener('load', function(){
+  renderIssueChips();    // Road chips on load
+  renderRecipients();    // Road recipients on load
   startLocation();
   checkReady();
 });
