@@ -163,6 +163,14 @@
   .perm-btn { background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff; border:none; border-radius:18px; padding:18px 40px; font-size:18px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:12px; box-shadow:0 8px 32px rgba(231,76,60,.5); margin-bottom:12px; transition:transform .15s; }
   .perm-btn:active { transform:scale(.96); }
   .perm-skip { font-size:13px; color:rgba(255,255,255,.4); cursor:pointer; text-decoration:underline; }
+  /* ── MUTE BUTTON ── */
+  .mute-btn { position:fixed; left:14px; z-index:190; width:46px; height:46px; background:rgba(255,255,255,.95); border:none; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:17px; color:#2980d9; box-shadow:0 3px 16px rgba(0,0,0,.25); cursor:pointer; transition:all .15s, bottom .3s; bottom:186px; }
+  .mute-btn.route-active { bottom:270px; }
+  .mute-btn.muted { background:rgba(231,76,60,.15); color:#e74c3c; border:2px solid rgba(231,76,60,.4); }
+  .mute-btn:active { transform:scale(.9); }
+  /* speaking pulse ring */
+  .mute-btn.speaking::after { content:''; position:absolute; inset:-5px; border-radius:50%; border:2px solid #2980d9; animation:speak-ring .7s ease-out forwards; }
+  @@keyframes speak-ring { 0%{opacity:.8;transform:scale(1)} 100%{opacity:0;transform:scale(1.6)} }
 </style>
 }
 
@@ -239,6 +247,11 @@
 <!-- ⑧ RECENTER BTN -->
 <button class="recenter-btn" id="recenterBtn" onclick="recenterMap()"><i class="fas fa-location-crosshairs"></i></button>
 
+<!-- ⑧b MUTE BUTTON -->
+<button class="mute-btn" id="muteBtn" onclick="toggleMute()" title="Mute / Unmute voice">
+  <i class="fas fa-volume-high" id="muteIcon"></i>
+</button>
+
 <!-- ⑨ BOTTOM BAR -->
 <div class="nav-bottom">
   <div class="address-card">
@@ -271,6 +284,9 @@ var isTracking=false, lastGeoLat=null, lastGeoLng=null;
 var routeSteps=[], currentStepIdx=0;
 var avoidHighways=false;
 var destCoords=null;   // {lat,lng,label}
+var voiceMuted=false;
+var speechSynth = window.speechSynthesis || null;
+var lastSpokenStep = -1;   // avoid re-announcing the same step
 
 // ── DOM ──
 var gpsBadge    = document.getElementById('gpsBadge');
@@ -299,6 +315,8 @@ var routeTime     = document.getElementById('routeTime');
 var routeEta      = document.getElementById('routeEta');
 var avoidBadge    = document.getElementById('avoidBadge');
 var recenterBtn   = document.getElementById('recenterBtn');
+var muteBtn       = document.getElementById('muteBtn');
+var muteIcon      = document.getElementById('muteIcon');
 
 // Hide shared navbar
 var navEl = document.querySelector('.navbar');
@@ -512,16 +530,25 @@ function renderRoute(route){
   routeSummary.classList.add('show');
   clearRouteBtn.classList.add('show');
   recenterBtn.classList.add('route-active');
+  muteBtn.classList.add('route-active');
 
   // Show first turn instruction
   if(routeSteps.length>0) showStep(0);
 
   isTracking=false; // allow next position update to re-track
+  // Announce route start
+  var distMi2 = (route.distance/1000*0.621371).toFixed(1);
+  var avoidStr = avoidHighways ? ', avoiding highways' : '';
+  speak('Route found. ' + distMi2 + ' miles to ' + (destCoords.label||'destination') + avoidStr + '. Starting navigation.');
 }
 
 // ── SHOW TURN STEP ──
 function showStep(idx){
-  if(idx>=routeSteps.length){ turnBanner.classList.remove('show'); return; }
+  if(idx>=routeSteps.length){
+    turnBanner.classList.remove('show');
+    speak('You have arrived at your destination.');
+    return;
+  }
   var step=routeSteps[idx];
   var dist=step.distance;
   var distStr=dist>1000?(dist/1609.34).toFixed(1)+' mi':(Math.round(dist*3.28084/10)*10)+' ft';
@@ -536,6 +563,12 @@ function showStep(idx){
   // Icon
   setTurnIcon(step.maneuver);
   turnBanner.classList.add('show');
+  // Voice announcement — only speak if this is a new step
+  if(idx !== lastSpokenStep){
+    lastSpokenStep = idx;
+    var ann = buildAnnouncement(step);
+    if(ann) speak(ann);
+  }
 }
 
 function formatManeuver(m){
@@ -586,13 +619,78 @@ window.clearRoute = function(){
   clearRouteBtn.classList.remove('show');
   turnBanner.classList.remove('show');
   recenterBtn.classList.remove('route-active');
+  muteBtn.classList.remove('route-active');
   avoidBadge.classList.remove('show');
   if(currentLat) leafletMap.setView([currentLat,currentLng],17,{animate:true});
+  if(speechSynth) speechSynth.cancel();
+  lastSpokenStep=-1;
+  muteBtn.classList.remove('speaking','route-active');
 };
 
 // ── RECENTER ──
 window.recenterMap = function(){
   if(currentLat!==null&&leafletMap) leafletMap.setView([currentLat,currentLng],17,{animate:true});
+};
+
+// ── VOICE ANNOUNCEMENTS ──
+function speak(text){
+  if(voiceMuted || !speechSynth) return;
+  // Cancel any currently speaking utterance
+  speechSynth.cancel();
+  var utt = new SpeechSynthesisUtterance(text);
+  utt.rate  = 1.0;
+  utt.pitch = 1.0;
+  utt.volume= 1.0;
+  // Prefer a natural English voice if available
+  var voices = speechSynth.getVoices();
+  var preferred = voices.find(function(v){ return v.lang.startsWith('en') && v.localService; })
+               || voices.find(function(v){ return v.lang.startsWith('en'); });
+  if(preferred) utt.voice = preferred;
+  // Pulse the mute button to show it's speaking
+  muteBtn.classList.add('speaking');
+  utt.onend = function(){ muteBtn.classList.remove('speaking'); };
+  utt.onerror = function(){ muteBtn.classList.remove('speaking'); };
+  speechSynth.speak(utt);
+}
+
+function buildAnnouncement(step){
+  if(!step) return '';
+  var m = step.maneuver || {};
+  var dist = step.distance || 0;
+  // Distance phrase
+  var distPhrase = '';
+  if(dist > 1609) {
+    distPhrase = 'In ' + (dist/1609.34).toFixed(1) + ' miles, ';
+  } else if(dist > 160) {
+    distPhrase = 'In ' + Math.round(dist*3.28084/100)*100 + ' feet, ';
+  } else if(dist > 30) {
+    distPhrase = 'In ' + Math.round(dist*3.28084/10)*10 + ' feet, ';
+  }
+  var instruction = m.instruction || formatManeuver(m);
+  // Clean up road names
+  var name = step.name || '';
+  if(name && !instruction.toLowerCase().includes(name.toLowerCase())){
+    instruction = instruction + (name ? ' onto ' + name : '');
+  }
+  return distPhrase + instruction;
+}
+
+window.toggleMute = function(){
+  voiceMuted = !voiceMuted;
+  muteBtn.classList.toggle('muted', voiceMuted);
+  muteIcon.className = voiceMuted ? 'fas fa-volume-xmark' : 'fas fa-volume-high';
+  if(voiceMuted){
+    if(speechSynth) speechSynth.cancel();
+    muteBtn.classList.remove('speaking');
+  } else {
+    // Re-announce current step when unmuted
+    if(routeSteps.length>0 && currentStepIdx<routeSteps.length){
+      var ann = buildAnnouncement(routeSteps[currentStepIdx]);
+      if(ann) speak(ann);
+    } else {
+      speak('Voice navigation unmuted.');
+    }
+  }
 };
 
 // ── HELPERS ──
