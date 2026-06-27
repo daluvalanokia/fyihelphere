@@ -15,7 +15,7 @@
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
-    <nav class="navbar">
+    <nav class="navbar" id="mainNavbar">
         <div class="navbar-brand">
             <a href="/" class="brand-link">
                 <div class="brand-icon"><i class="fas fa-road"></i></div>
@@ -48,5 +48,14 @@
     <main>@RenderBody()</main>
 
     @await RenderSectionAsync("Scripts", required: false)
+@if (ViewData["FullScreen"] != null)
+{
+  <script>
+    var nb = document.getElementById('mainNavbar');
+    if (nb) nb.style.display = 'none';
+    var mn = document.querySelector('main');
+    if (mn) { mn.style.padding = '0'; mn.style.margin = '0'; mn.style.overflow = 'hidden'; }
+  </script>
+}
 </body>
 </html>

@@ -2,6 +2,9 @@
     ViewData["Title"] = "Report Road Issue";
     var mapsKey = ViewBag.GoogleMapsApiKey as string ?? "";
     var recipients = ViewBag.Recipients as List<fyihelphere.Models.RecipientOption> ?? new();
+    var prefilledLat = ViewBag.PrefilledLat as double?;
+    var prefilledLng = ViewBag.PrefilledLng as double?;
+    bool hasPrefilledCoords = prefilledLat.HasValue && prefilledLng.HasValue;
 }
 
 @section Styles {
@@ -127,6 +130,14 @@
 }
 
 <div class="rp">
+@if (hasPrefilledCoords)
+{
+  <div style="background:linear-gradient(135deg,#1a6b3c,#27ae60);color:#fff;padding:10px 20px;display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;">
+    <i class="fas fa-location-arrow"></i>
+    <span>Location captured from navigation map &mdash; @prefilledLat!.Value.ToString("F5", System.Globalization.CultureInfo.InvariantCulture), @prefilledLng!.Value.ToString("F5", System.Globalization.CultureInfo.InvariantCulture)</span>
+    <a href="/" style="margin-left:auto;color:rgba(255,255,255,.7);font-size:11px;text-decoration:none;">&larr; Back to Map</a>
+  </div>
+}
 
   <!-- STEP INDICATOR -->
   <div class="step-bar">
@@ -346,9 +357,17 @@
 <script>
 var lat=0, lng=0, locReady=false, photoReady=false, deptReady=false;
 var mapsKey='@mapsKey';
+// Pre-filled from navigation map (passed via query string)
+var prefilledLat = @(hasPrefilledCoords ? prefilledLat!.Value.ToString("F6", System.Globalization.CultureInfo.InvariantCulture) : "null");
+var prefilledLng = @(hasPrefilledCoords ? prefilledLng!.Value.ToString("F6", System.Globalization.CultureInfo.InvariantCulture) : "null");
 
 // ── LOCATION ─────────────────────────────────────────
 function startLocation(){
+  // If we already have coords from the nav map, use them instantly
+  if(prefilledLat !== null && prefilledLng !== null){
+    onLoc({ coords:{ latitude:prefilledLat, longitude:prefilledLng, accuracy:10 } });
+    return;
+  }
   if(!navigator.geolocation){ setLocError('GPS not available'); return; }
   navigator.geolocation.getCurrentPosition(onLoc, onLocErr, {enableHighAccuracy:true,timeout:12000,maximumAge:0});
 }

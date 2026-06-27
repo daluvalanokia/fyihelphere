@@ -1,60 +1,307 @@
 @{
-    ViewData["Title"] = "FYI Help Here";
+    ViewData["Title"] = "FYI Help Here — Navigation";
+    ViewData["FullScreen"] = true;
     var mapsKey = ViewBag.GoogleMapsApiKey as string ?? "";
 }
 
 @section Styles {
 <style>
-  .splash { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:calc(100vh - 64px); padding:24px 20px; text-align:center; }
-  .splash-icon { width:100px; height:100px; background:linear-gradient(135deg,#e74c3c,#c0392b); border-radius:28px; display:inline-flex; align-items:center; justify-content:center; font-size:44px; color:white; box-shadow:0 12px 40px rgba(231,76,60,.45); margin-bottom:28px; animation:float 3s ease-in-out infinite; }
-  @@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-  .splash h1 { font-size:36px; font-weight:900; color:#222; margin:0 0 10px; letter-spacing:-1px; }
-  .splash p { font-size:17px; color:#888; margin:0 0 36px; max-width:420px; line-height:1.6; }
-  .big-btn { background:linear-gradient(135deg,#e74c3c,#c0392b); color:white; border:none; border-radius:20px; padding:22px 48px; font-size:20px; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:14px; box-shadow:0 8px 32px rgba(231,76,60,.5); transition:all .25s; text-decoration:none; }
-  .big-btn:hover { transform:translateY(-3px) scale(1.02); box-shadow:0 12px 40px rgba(231,76,60,.6); color:white; }
-  .big-btn i { font-size:24px; }
-  .steps-row { display:flex; gap:20px; margin-top:48px; flex-wrap:wrap; justify-content:center; }
-  .step { background:#fff; border-radius:16px; padding:20px; width:160px; box-shadow:0 2px 12px rgba(0,0,0,.06); border:1.5px solid #f0f0f0; transition:transform .2s; }
-  .step:hover { transform:translateY(-4px); }
-  .step-num { width:36px; height:36px; background:var(--primary,#e74c3c); border-radius:50%; color:white; font-weight:800; font-size:16px; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; }
-  .step p { margin:0; font-size:13px; color:#666; line-height:1.4; }
-  .step-icon { font-size:24px; color:#e74c3c; margin-bottom:8px; }
-  .disclaimer { margin-top:32px; font-size:12px; color:#bbb; max-width:380px; }
+  /* Full-screen map layout */
+  html, body { margin:0; padding:0; height:100%; overflow:hidden; }
+
+  #map-container { position:fixed; top:0; left:0; right:0; bottom:0; z-index:0; }
+  #osm-map { width:100%; height:100%; position:absolute; top:0; left:0; }
+
+  /* Top HUD */
+  .nav-hud {
+    position:fixed; top:0; left:0; right:0; z-index:100;
+    display:flex; align-items:center; gap:10px; padding:12px 14px;
+    background:linear-gradient(to bottom,rgba(0,0,0,.72) 0%,rgba(0,0,0,0) 100%);
+    pointer-events:none;
+  }
+  .hud-brand { display:flex; align-items:center; gap:8px; pointer-events:auto; }
+  .hud-brand-icon { width:34px; height:34px; background:linear-gradient(135deg,#e74c3c,#c0392b); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; color:#fff; box-shadow:0 2px 10px rgba(231,76,60,.5); }
+  .hud-brand-name { font-size:15px; font-weight:800; color:#fff; text-shadow:0 1px 4px rgba(0,0,0,.6); letter-spacing:-.3px; }
+  .hud-spacer { flex:1; }
+  .speed-pill { background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.15); border-radius:20px; padding:5px 14px; display:flex; align-items:center; gap:6px; color:#fff; backdrop-filter:blur(8px); pointer-events:none; }
+  .speed-val { font-size:22px; font-weight:900; line-height:1; }
+  .speed-unit { font-size:10px; font-weight:600; color:#aaa; }
+
+  /* GPS status badge */
+  .gps-badge { position:fixed; top:64px; left:50%; transform:translateX(-50%); z-index:200; background:rgba(0,0,0,.72); color:#fff; border-radius:20px; padding:7px 16px; font-size:12px; font-weight:600; display:flex; align-items:center; gap:7px; backdrop-filter:blur(8px); transition:opacity .5s; white-space:nowrap; }
+  .gps-badge.hidden { opacity:0; pointer-events:none; }
+  .gps-dot { width:8px; height:8px; border-radius:50%; background:#f39c12; }
+  .gps-dot.active { background:#27ae60; }
+  @@keyframes blink-dot { 0%,100%{opacity:1} 50%{opacity:.2} }
+  .gps-dot { animation:blink-dot 1s ease-in-out infinite; }
+  .gps-dot.active { animation:none; }
+
+  /* Recenter button */
+  .recenter-btn { position:fixed; bottom:172px; right:16px; z-index:100; width:46px; height:46px; background:rgba(255,255,255,.95); border:none; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; color:#2980d9; box-shadow:0 3px 16px rgba(0,0,0,.25); cursor:pointer; transition:transform .15s; }
+  .recenter-btn:active { transform:scale(.9); }
+
+  /* Bottom bar */
+  .nav-bottom { position:fixed; bottom:0; left:0; right:0; z-index:100; padding:0 14px 24px; background:linear-gradient(to top,rgba(0,0,0,.78) 60%,rgba(0,0,0,0) 100%); }
+  .address-card { background:rgba(255,255,255,.97); border-radius:16px; padding:12px 14px; margin-bottom:10px; box-shadow:0 4px 24px rgba(0,0,0,.3); display:flex; align-items:center; gap:12px; }
+  .address-icon { width:38px; height:38px; min-width:38px; background:#f0f4ff; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; color:#2980d9; }
+  .address-text { flex:1; min-width:0; }
+  .address-main { font-size:14px; font-weight:700; color:#1a1a2e; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:0 0 2px; }
+  .address-sub { font-size:12px; color:#888; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .address-coords { font-size:10.5px; font-weight:600; color:#2980d9; text-align:right; min-width:80px; line-height:1.5; }
+
+  /* THE big red button */
+  .cleanup-btn { width:100%; background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff; border:none; border-radius:18px; padding:18px 24px; font-size:20px; font-weight:900; letter-spacing:-.3px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:12px; box-shadow:0 6px 28px rgba(231,76,60,.6),0 2px 8px rgba(0,0,0,.3); transition:all .15s ease; text-decoration:none; -webkit-tap-highlight-color:transparent; }
+  .cleanup-btn:active { transform:scale(.97); }
+  .cleanup-btn .btn-sub { font-size:12px; font-weight:500; opacity:.85; display:block; margin-top:1px; }
+
+  /* Splash permission overlay */
+  .perm-overlay { position:fixed; inset:0; z-index:500; background:linear-gradient(160deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px 24px; text-align:center; transition:opacity .4s,visibility .4s; }
+  .perm-overlay.gone { opacity:0; visibility:hidden; pointer-events:none; }
+  .perm-icon { width:96px; height:96px; background:linear-gradient(135deg,#e74c3c,#c0392b); border-radius:28px; display:flex; align-items:center; justify-content:center; font-size:44px; color:#fff; box-shadow:0 16px 48px rgba(231,76,60,.5); margin-bottom:24px; }
+  @@keyframes float-icon { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+  .perm-icon { animation:float-icon 3s ease-in-out infinite; }
+  .perm-title { font-size:28px; font-weight:900; color:#fff; margin:0 0 10px; }
+  .perm-sub { font-size:15px; color:rgba(255,255,255,.6); margin:0 0 28px; line-height:1.6; max-width:320px; }
+  .perm-feature-row { display:flex; gap:12px; margin-bottom:32px; width:100%; max-width:340px; }
+  .perm-feat { background:rgba(255,255,255,.08); border-radius:14px; padding:14px 10px; text-align:center; flex:1; }
+  .perm-feat i { font-size:22px; color:#e74c3c; margin-bottom:8px; display:block; }
+  .perm-feat span { font-size:11px; color:rgba(255,255,255,.65); line-height:1.4; }
+  .perm-btn { background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff; border:none; border-radius:18px; padding:18px 40px; font-size:18px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:12px; box-shadow:0 8px 32px rgba(231,76,60,.5); margin-bottom:12px; transition:transform .15s; }
+  .perm-btn:active { transform:scale(.96); }
+  .perm-skip { font-size:13px; color:rgba(255,255,255,.4); cursor:pointer; text-decoration:underline; }
 </style>
 }
 
-<div class="splash">
-  <div class="splash-icon"><i class="fas fa-road"></i></div>
-  <h1>FYI Help Here</h1>
-  <p>Spotted a road hazard, debris, or damage while driving? Report it to your city maintenance team in seconds.</p>
-
-  <a href="/NeedCleanup" class="big-btn">
-    <i class="fas fa-camera"></i>
-    Report a Road Issue
-  </a>
-
-  <div class="steps-row">
-    <div class="step">
-      <div class="step-num">1</div>
-      <div class="step-icon"><i class="fas fa-camera"></i></div>
-      <p>Take or upload a photo of the issue</p>
+<!-- Permission splash overlay -->
+<div class="perm-overlay" id="permOverlay">
+  <div class="perm-icon"><i class="fas fa-road"></i></div>
+  <h1 class="perm-title">FYI Help Here</h1>
+  <p class="perm-sub">Your live driving navigation assistant. Spot a road issue? Tap once to report it to the right city department.</p>
+  <div class="perm-feature-row">
+    <div class="perm-feat">
+      <i class="fas fa-location-arrow"></i>
+      <span>Live GPS<br>Tracking</span>
     </div>
-    <div class="step">
-      <div class="step-num">2</div>
-      <div class="step-icon"><i class="fas fa-map-pin"></i></div>
-      <p>Location captured automatically</p>
+    <div class="perm-feat">
+      <i class="fas fa-map"></i>
+      <span>Real-time<br>Navigation</span>
     </div>
-    <div class="step">
-      <div class="step-num">3</div>
-      <div class="step-icon"><i class="fas fa-eye"></i></div>
-      <p>Review details before sending</p>
-    </div>
-    <div class="step">
-      <div class="step-num">4</div>
-      <div class="step-icon"><i class="fas fa-paper-plane"></i></div>
-      <p>Report sent to the right department</p>
+    <div class="perm-feat">
+      <i class="fas fa-triangle-exclamation"></i>
+      <span>1-Tap<br>Reporting</span>
     </div>
   </div>
-
-  <p class="disclaimer"><i class="fas fa-lock" style="color:#27ae60"></i> Your location is only used for this report and is never stored on our servers without your consent.</p>
+  <button class="perm-btn" onclick="startNavigation()">
+    <i class="fas fa-location-arrow"></i> Enable Navigation
+  </button>
+  <span class="perm-skip" onclick="skipToMap()">Skip — browse map without GPS</span>
 </div>
+
+<!-- Full-screen map -->
+<div id="map-container">
+  <div id="osm-map"></div>
+</div>
+
+<!-- GPS status badge -->
+<div class="gps-badge" id="gpsBadge">
+  <div class="gps-dot" id="gpsDot"></div>
+  <span id="gpsLabel">Acquiring GPS…</span>
+</div>
+
+<!-- Top HUD -->
+<div class="nav-hud">
+  <div class="hud-brand">
+    <div class="hud-brand-icon"><i class="fas fa-road"></i></div>
+    <span class="hud-brand-name">FYI Help Here</span>
+  </div>
+  <div class="hud-spacer"></div>
+  <div class="speed-pill" id="speedPill" style="display:none">
+    <div class="speed-val" id="speedVal">0</div>
+    <div style="display:flex;flex-direction:column">
+      <span class="speed-unit">mph</span>
+    </div>
+  </div>
+</div>
+
+<!-- Recenter button -->
+<button class="recenter-btn" id="recenterBtn" onclick="recenterMap()" title="Recenter on my location">
+  <i class="fas fa-location-crosshairs"></i>
+</button>
+
+<!-- Bottom bar -->
+<div class="nav-bottom">
+  <div class="address-card" id="addressCard">
+    <div class="address-icon"><i class="fas fa-map-marker-alt"></i></div>
+    <div class="address-text">
+      <p class="address-main" id="addrMain">Waiting for GPS…</p>
+      <p class="address-sub"  id="addrSub">Enable GPS to see your location</p>
+    </div>
+    <div class="address-coords" id="addrCoords">—</div>
+  </div>
+
+  <a id="cleanupBtn" href="/NeedCleanup" class="cleanup-btn">
+    <i class="fas fa-triangle-exclamation"></i>
+    <div>
+      Need Cleanup Here!
+      <span class="btn-sub">Tap to report this location</span>
+    </div>
+  </a>
+</div>
+
+@section Scripts {
+<link rel="stylesheet" href="https://unpkg.com/leaflet@@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var currentLat = null, currentLng = null;
+  var leafletMap = null, leafletMarker = null, leafletAccCircle = null;
+  var watchId = null, geocodeTimer = null;
+  var isTracking = false, lastGeoLat = null, lastGeoLng = null;
+
+  var gpsBadge   = document.getElementById('gpsBadge');
+  var gpsDot     = document.getElementById('gpsDot');
+  var gpsLabel   = document.getElementById('gpsLabel');
+  var addrMain   = document.getElementById('addrMain');
+  var addrSub    = document.getElementById('addrSub');
+  var addrCoords = document.getElementById('addrCoords');
+  var speedPill  = document.getElementById('speedPill');
+  var speedVal   = document.getElementById('speedVal');
+  var cleanupBtn = document.getElementById('cleanupBtn');
+
+  // Hide the shared navbar — this page IS full-screen
+  var nav = document.querySelector('.navbar');
+  if (nav) nav.style.display = 'none';
+  var main = document.querySelector('main');
+  if (main) { main.style.padding = '0'; main.style.margin = '0'; }
+
+  function initLeaflet(lat, lng) {
+    if (leafletMap) return;
+    lat = lat || 37.7749; lng = lng || -122.4194;
+
+    leafletMap = L.map('osm-map', {
+      center: [lat, lng], zoom: 17,
+      zoomControl: false, attributionControl: true
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
+    }).addTo(leafletMap);
+
+    var blueIcon = L.divIcon({
+      className: '',
+      html: '<div style="width:20px;height:20px;background:#2980d9;border:3px solid white;border-radius:50%;box-shadow:0 0 0 10px rgba(41,128,217,.2)"></div>',
+      iconSize: [20,20], iconAnchor: [10,10]
+    });
+    leafletMarker = L.marker([lat,lng], { icon: blueIcon, zIndexOffset: 1000 }).addTo(leafletMap);
+    leafletAccCircle = L.circle([lat,lng], { radius:30, color:'#2980d9', fillColor:'#2980d9', fillOpacity:.1, weight:1 }).addTo(leafletMap);
+  }
+
+  window.startNavigation = function () {
+    document.getElementById('permOverlay').classList.add('gone');
+    initLeaflet();
+    requestGPS();
+  };
+
+  window.skipToMap = function () {
+    document.getElementById('permOverlay').classList.add('gone');
+    initLeaflet();
+    addrMain.textContent = 'GPS not enabled';
+    addrSub.textContent  = 'Tap below to report manually';
+    gpsDot.style.background = '#e74c3c';
+    gpsDot.style.animation  = 'none';
+    gpsLabel.textContent = 'No GPS — manual mode';
+    setTimeout(function(){ gpsBadge.classList.add('hidden'); }, 4000);
+  };
+
+  function requestGPS() {
+    if (!navigator.geolocation) { showGpsErr('GPS not supported'); return; }
+    navigator.geolocation.getCurrentPosition(onPos, onGpsErr, { enableHighAccuracy:true, timeout:12000, maximumAge:0 });
+    watchId = navigator.geolocation.watchPosition(onPos, onGpsErr, { enableHighAccuracy:true, timeout:10000, maximumAge:2000 });
+  }
+
+  function onPos(pos) {
+    var lat = pos.coords.latitude;
+    var lng = pos.coords.longitude;
+    var acc = pos.coords.accuracy;
+    var spd = pos.coords.speed;
+
+    currentLat = lat; currentLng = lng;
+
+    // GPS badge → green
+    gpsDot.classList.add('active');
+    gpsLabel.textContent = 'GPS \u2022 ' + acc.toFixed(0) + 'm accuracy';
+    if (acc < 20) setTimeout(function(){ gpsBadge.classList.add('hidden'); }, 2500);
+
+    // Speed pill
+    if (spd !== null && spd > 0.8) {
+      speedVal.textContent = (spd * 2.23694).toFixed(0);
+      speedPill.style.display = 'flex';
+    } else {
+      speedPill.style.display = 'none';
+    }
+
+    // Update map
+    if (!leafletMap) initLeaflet(lat, lng);
+    leafletMarker.setLatLng([lat, lng]);
+    leafletAccCircle.setLatLng([lat, lng]).setRadius(acc);
+    if (!isTracking) {
+      leafletMap.setView([lat, lng], 17, { animate:true });
+      isTracking = true;
+    } else {
+      leafletMap.panTo([lat, lng], { animate:true, duration:0.8 });
+    }
+
+    // Coords display
+    addrCoords.innerHTML = lat.toFixed(5) + '<br>' + lng.toFixed(5);
+
+    // Pass coords to cleanup button
+    cleanupBtn.href = '/NeedCleanup?lat=' + lat + '&lng=' + lng;
+
+    // Reverse geocode (throttled — only if moved >25m)
+    var moved = lastGeoLat === null ||
+      Math.abs(lat - lastGeoLat) > 0.00025 || Math.abs(lng - lastGeoLng) > 0.00025;
+    if (moved) {
+      lastGeoLat = lat; lastGeoLng = lng;
+      clearTimeout(geocodeTimer);
+      geocodeTimer = setTimeout(function(){ reverseGeocode(lat, lng); }, 900);
+    }
+  }
+
+  function reverseGeocode(lat, lng) {
+    addrMain.textContent = 'Looking up address…';
+    fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+lat+'&lon='+lng+'&zoom=18&addressdetails=1',
+      { headers: { 'Accept-Language':'en-US,en' } })
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      var a = d.address || {};
+      var road  = a.road || a.pedestrian || a.footway || a.path || '';
+      var house = a.house_number || '';
+      var city  = a.city || a.town || a.village || a.suburb || a.county || '';
+      var state = a.state || ''; var zip = a.postcode || '';
+      addrMain.textContent = (house ? house+' ':'')+road || d.display_name.split(',')[0];
+      addrSub.textContent  = [city,state,zip].filter(Boolean).join(', ');
+    })
+    .catch(function(){ addrMain.textContent = 'Address unavailable'; addrSub.textContent = ''; });
+  }
+
+  function onGpsErr(e) {
+    var m = { 1:'Location access denied — allow GPS in browser', 2:'GPS signal unavailable', 3:'GPS timed out' };
+    showGpsErr(m[e.code] || 'GPS error');
+  }
+  function showGpsErr(msg) {
+    gpsDot.style.background='#e74c3c'; gpsDot.style.animation='none';
+    gpsLabel.textContent = msg;
+    addrMain.textContent = 'Location unavailable';
+    addrSub.textContent  = msg;
+  }
+
+  window.recenterMap = function () {
+    if (currentLat !== null && leafletMap)
+      leafletMap.setView([currentLat, currentLng], 17, { animate:true });
+  };
+})();
+</script>
+}

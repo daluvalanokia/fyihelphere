@@ -43,10 +43,16 @@ namespace fyihelphere.Controllers
         // STEP 1 — Camera / Photo capture
         // ─────────────────────────────────────────────────────────
         [HttpGet]
-        public IActionResult Index()
+        public IActionResult Index(double? lat, double? lng)
         {
             ViewBag.GoogleMapsApiKey = _settings.GoogleMapsApiKey;
             ViewBag.Recipients = GetRecipients();
+            // Pre-fill coordinates passed from the navigation map
+            if (lat.HasValue && lng.HasValue)
+            {
+                ViewBag.PrefilledLat = lat.Value;
+                ViewBag.PrefilledLng = lng.Value;
+            }
             return View();
         }
 
