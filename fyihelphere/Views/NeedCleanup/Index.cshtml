@@ -1,0 +1,562 @@
+@{
+    ViewData["Title"] = "Report Road Issue";
+    var mapsKey = ViewBag.GoogleMapsApiKey as string ?? "";
+    var recipients = ViewBag.Recipients as List<fyihelphere.Models.RecipientOption> ?? new();
+}
+
+@section Styles {
+<style>
+/* ── LAYOUT ─────────────────────────────── */
+.rp { max-width:520px; margin:0 auto; padding:0 0 80px; background:#f5f7fa; min-height:100vh; }
+
+/* ── STEP HEADER ─────────────────────────── */
+.step-bar { background:#fff; padding:14px 20px; display:flex; align-items:center; gap:12px; border-bottom:1.5px solid #f0f0f0; position:sticky; top:64px; z-index:20; }
+.step-pip { width:28px; height:28px; border-radius:50%; background:#e8e8e8; color:#aaa; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all .3s; }
+.step-pip.done { background:#27ae60; color:#fff; }
+.step-pip.active { background:#e74c3c; color:#fff; box-shadow:0 0 0 4px rgba(231,76,60,.2); }
+.step-label { font-size:12px; color:#888; white-space:nowrap; }
+.step-line { flex:1; height:2px; background:#e8e8e8; border-radius:2px; }
+.step-line.done { background:#27ae60; }
+
+/* ── SECTION CARD ─────────────────────────── */
+.sec { background:#fff; border-radius:0; margin-bottom:8px; overflow:hidden; }
+.sec-hdr { padding:16px 20px 0; display:flex; align-items:center; gap:10px; }
+.sec-hdr .sec-num { width:26px; height:26px; background:#e74c3c; border-radius:8px; color:#fff; font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.sec-hdr h2 { font-size:15px; font-weight:700; color:#222; margin:0; }
+.sec-hdr p { font-size:12px; color:#aaa; margin:2px 0 0; }
+.sec-body { padding:16px 20px 20px; }
+
+/* ── CAMERA ZONE ─────────────────────────── */
+.camera-zone { position:relative; width:100%; aspect-ratio:4/3; background:#1a1a2e; border-radius:16px; overflow:hidden; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:12px; border:2px dashed #333; transition:border-color .2s; }
+.camera-zone:hover { border-color:#e74c3c; }
+.camera-zone .cam-icon { font-size:56px; color:rgba(255,255,255,.3); }
+.camera-zone .cam-text { color:rgba(255,255,255,.5); font-size:15px; font-weight:500; }
+.camera-zone .cam-hint { color:rgba(255,255,255,.3); font-size:12px; }
+.camera-zone img#photoPreview { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:none; border-radius:14px; }
+.camera-zone .photo-overlay { position:absolute; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; gap:12px; border-radius:14px; }
+.camera-zone:hover .photo-overlay { display:flex; }
+.retake-btn { background:rgba(255,255,255,.9); color:#333; border:none; border-radius:10px; padding:10px 18px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; }
+
+.cam-actions { display:flex; gap:10px; margin-top:12px; }
+.cam-btn { flex:1; border:none; border-radius:12px; padding:14px; font-size:14px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:all .2s; }
+.cam-btn-primary { background:linear-gradient(135deg,#e74c3c,#c0392b); color:white; box-shadow:0 4px 14px rgba(231,76,60,.4); }
+.cam-btn-primary:hover { box-shadow:0 6px 20px rgba(231,76,60,.5); transform:translateY(-1px); }
+.cam-btn-secondary { background:#f0f0f0; color:#555; }
+.cam-btn-secondary:hover { background:#e5e5e5; }
+
+/* ── LOCATION CARD ─────────────────────────── */
+.loc-card { background:linear-gradient(135deg,#1a1a2e,#16213e); border-radius:14px; padding:18px; color:#fff; position:relative; overflow:hidden; }
+.loc-card::before { content:''; position:absolute; top:-30px; right:-30px; width:120px; height:120px; background:rgba(231,76,60,.15); border-radius:50%; }
+.loc-status { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+.loc-dot { width:8px; height:8px; border-radius:50%; background:#27ae60; animation:blink 1.5s infinite; flex-shrink:0; }
+.loc-dot.waiting { background:#f39c12; }
+.loc-dot.error { background:#e74c3c; animation:none; }
+@@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.loc-status span { font-size:12px; color:rgba(255,255,255,.7); font-weight:500; }
+.loc-address { font-size:15px; font-weight:700; color:#fff; margin-bottom:4px; line-height:1.3; }
+.loc-city { font-size:13px; color:rgba(255,255,255,.65); margin-bottom:8px; }
+.loc-coords { font-family:monospace; font-size:12px; color:rgba(255,255,255,.45); background:rgba(255,255,255,.08); padding:5px 10px; border-radius:6px; display:inline-block; }
+.loc-landmark { font-size:12px; color:rgba(255,255,255,.55); margin-top:8px; display:flex; align-items:center; gap:6px; }
+.refresh-loc { position:absolute; top:14px; right:14px; background:rgba(255,255,255,.1); border:none; color:#fff; border-radius:8px; padding:7px 10px; font-size:13px; cursor:pointer; transition:background .2s; }
+.refresh-loc:hover { background:rgba(255,255,255,.2); }
+
+/* ── FORM FIELDS ─────────────────────────── */
+.field { margin-bottom:14px; }
+.field label { display:block; font-size:12px; font-weight:700; color:#888; text-transform:uppercase; letter-spacing:.4px; margin-bottom:6px; }
+.field input, .field select, .field textarea { width:100%; border:1.5px solid #e8e8e8; border-radius:10px; padding:12px 14px; font-size:15px; color:#333; background:#fafafa; transition:border-color .2s,background .2s; box-sizing:border-box; font-family:inherit; -webkit-appearance:none; }
+.field input:focus, .field select:focus, .field textarea:focus { border-color:#e74c3c; outline:none; background:#fff; }
+.field textarea { resize:none; min-height:80px; line-height:1.5; }
+.field select { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath fill='%23999' d='M7 9L2 4h10z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; padding-right:38px; }
+.field .hint { font-size:11px; color:#bbb; margin-top:4px; }
+
+/* ── ISSUE TYPES ─────────────────────────── */
+.issue-chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+.chip { border:1.5px solid #e8e8e8; border-radius:20px; padding:6px 14px; font-size:13px; font-weight:500; color:#666; cursor:pointer; transition:all .2s; background:#fff; white-space:nowrap; }
+.chip:hover { border-color:#e74c3c; color:#e74c3c; }
+.chip.selected { background:#e74c3c; border-color:#e74c3c; color:#fff; font-weight:600; }
+
+/* ── SEVERITY ─────────────────────────── */
+.sev-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px; }
+.sev-opt { border:1.5px solid #e8e8e8; border-radius:10px; padding:10px 12px; cursor:pointer; transition:all .2s; background:#fff; text-align:center; }
+.sev-opt .sev-icon { font-size:18px; display:block; margin-bottom:4px; }
+.sev-opt .sev-name { font-size:12px; font-weight:600; color:#666; }
+.sev-opt.selected { border-width:2px; }
+.sev-opt[data-sev="low"].selected { border-color:#f1c40f; background:#fffde7; }
+.sev-opt[data-sev="medium"].selected { border-color:#f39c12; background:#fff8e1; }
+.sev-opt[data-sev="high"].selected { border-color:#e74c3c; background:#fff5f5; }
+.sev-opt[data-sev="critical"].selected { border-color:#c0392b; background:#fdedec; }
+
+/* ── RECIPIENT CARDS ─────────────────────── */
+.recipient-list { display:flex; flex-direction:column; gap:10px; }
+.recipient-card { border:2px solid #e8e8e8; border-radius:12px; padding:14px 16px; cursor:pointer; transition:all .2s; background:#fff; display:flex; align-items:center; gap:14px; }
+.recipient-card:hover { border-color:#ccc; box-shadow:0 2px 10px rgba(0,0,0,.06); }
+.recipient-card.selected { border-color:#e74c3c; background:#fff5f5; }
+.rc-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:17px; color:#fff; flex-shrink:0; }
+.rc-info { flex:1; min-width:0; }
+.rc-name { font-size:14px; font-weight:700; color:#222; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rc-contact { font-size:11px; color:#aaa; margin-top:2px; display:flex; gap:10px; flex-wrap:wrap; }
+.rc-contact span { display:flex; align-items:center; gap:4px; }
+.rc-badge { background:#e8e8e8; color:#888; border-radius:6px; padding:2px 8px; font-size:11px; font-weight:600; flex-shrink:0; }
+.rc-badge.email { background:#e3f2fd; color:#1565c0; }
+.rc-badge.sms { background:#e8f5e9; color:#2e7d32; }
+.rc-badge.both { background:#f3e5f5; color:#6a1b9a; }
+.rc-check { width:22px; height:22px; border:2px solid #ddd; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all .2s; }
+.recipient-card.selected .rc-check { background:#e74c3c; border-color:#e74c3c; color:#fff; }
+
+/* ── NOTIFY TOGGLE ─────────────────────── */
+.notify-toggle { display:flex; gap:8px; margin-top:8px; }
+.notify-opt { flex:1; border:1.5px solid #e8e8e8; border-radius:10px; padding:10px; text-align:center; cursor:pointer; transition:all .2s; background:#fff; }
+.notify-opt.active { border-color:#e74c3c; background:#fff5f5; }
+.notify-opt i { display:block; font-size:18px; color:#aaa; margin-bottom:4px; }
+.notify-opt.active i { color:#e74c3c; }
+.notify-opt span { font-size:12px; font-weight:600; color:#888; }
+.notify-opt.active span { color:#e74c3c; }
+
+/* ── SUBMIT BAR ─────────────────────────── */
+.submit-bar { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:520px; background:#fff; border-top:1.5px solid #f0f0f0; padding:14px 20px; box-shadow:0 -4px 20px rgba(0,0,0,.1); z-index:30; }
+.submit-inner { display:flex; gap:12px; align-items:center; }
+.submit-note { font-size:11px; color:#bbb; flex:1; line-height:1.4; }
+.btn-review { background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff; border:none; border-radius:12px; padding:14px 28px; font-size:15px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; box-shadow:0 4px 16px rgba(231,76,60,.4); transition:all .25s; white-space:nowrap; }
+.btn-review:hover { box-shadow:0 6px 22px rgba(231,76,60,.5); transform:translateY(-1px); }
+.btn-review:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+
+/* ── TOAST ─────────────────────────────── */
+.toast { position:fixed; top:80px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:10px 20px; border-radius:30px; font-size:13px; font-weight:500; z-index:999; opacity:0; transition:opacity .3s; pointer-events:none; white-space:nowrap; }
+.toast.show { opacity:1; }
+</style>
+}
+
+<div class="rp">
+
+  <!-- STEP INDICATOR -->
+  <div class="step-bar">
+    <div class="step-pip active" id="pip1">1</div>
+    <span class="step-label" style="color:#e74c3c;font-weight:600">Photo</span>
+    <div class="step-line" id="line12"></div>
+    <div class="step-pip" id="pip2">2</div>
+    <span class="step-label">Details</span>
+    <div class="step-line" id="line23"></div>
+    <div class="step-pip" id="pip3">3</div>
+    <span class="step-label">Recipient</span>
+    <div class="step-line" id="line34"></div>
+    <div class="step-pip" id="pip4">4</div>
+    <span class="step-label">Review</span>
+  </div>
+
+  <form method="post" action="/NeedCleanup/Review" enctype="multipart/form-data" id="reportForm">
+    @Html.AntiForgeryToken()
+
+    <!-- Hidden location fields -->
+    <input type="hidden" name="latitude"       id="f_lat" value="0" />
+    <input type="hidden" name="longitude"      id="f_lng" value="0" />
+    <input type="hidden" name="address"        id="f_addr" />
+    <input type="hidden" name="city"           id="f_city" />
+    <input type="hidden" name="state"          id="f_state" />
+    <input type="hidden" name="zipCode"        id="f_zip" />
+    <input type="hidden" name="nearbyLandmark" id="f_lmk" />
+    <input type="hidden" name="issueType"      id="f_issuetype" value="" />
+    <input type="hidden" name="severity"       id="f_severity"  value="medium" />
+    <input type="hidden" name="recipientDepartment" id="f_dept" value="" />
+    <input type="hidden" name="notifyMethod"   id="f_notify" value="email" />
+
+    <!-- ══════════════════════════════════════
+         SECTION 1 — PHOTO
+    ══════════════════════════════════════ -->
+    <div class="sec">
+      <div class="sec-hdr">
+        <div class="sec-num">1</div>
+        <div><h2>Take a Photo</h2><p>Capture the road issue clearly</p></div>
+      </div>
+      <div class="sec-body">
+        <div class="camera-zone" id="cameraZone" onclick="triggerCamera()">
+          <i class="fas fa-camera cam-icon"></i>
+          <span class="cam-text">Tap to take a photo</span>
+          <span class="cam-hint">or upload from gallery</span>
+          <img id="photoPreview" src="" alt="Preview" />
+          <div class="photo-overlay">
+            <button type="button" class="retake-btn" onclick="event.stopPropagation(); retakePhoto()">
+              <i class="fas fa-redo"></i> Retake
+            </button>
+          </div>
+        </div>
+        <input type="file" id="photoInput" name="photoFile" accept="image/*" capture="environment" style="display:none" onchange="onPhotoSelected(this)" />
+        <div class="cam-actions">
+          <button type="button" class="cam-btn cam-btn-primary" onclick="triggerCamera()">
+            <i class="fas fa-camera"></i> Camera
+          </button>
+          <button type="button" class="cam-btn cam-btn-secondary" onclick="triggerGallery()">
+            <i class="fas fa-images"></i> Gallery
+          </button>
+        </div>
+        <input type="file" id="galleryInput" name="photoFileAlt" accept="image/*" style="display:none" onchange="onGallerySelected(this)" />
+        <div id="photoStatus" style="display:none;margin-top:10px;background:#e8f5e9;border-radius:8px;padding:10px 14px;font-size:13px;color:#2e7d32;display:none">
+          <i class="fas fa-check-circle"></i> <span id="photoStatusText">Photo ready</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         SECTION 2 — LOCATION (auto)
+    ══════════════════════════════════════ -->
+    <div class="sec">
+      <div class="sec-hdr">
+        <div class="sec-num">2</div>
+        <div><h2>Your Location</h2><p>Captured automatically from GPS</p></div>
+      </div>
+      <div class="sec-body">
+        <div class="loc-card">
+          <button type="button" class="refresh-loc" onclick="refreshLocation()" title="Refresh location">
+            <i class="fas fa-sync-alt" id="refreshIcon"></i>
+          </button>
+          <div class="loc-status">
+            <div class="loc-dot waiting" id="locDot"></div>
+            <span id="locStatusText">Getting your location…</span>
+          </div>
+          <div class="loc-address" id="locAddress">—</div>
+          <div class="loc-city" id="locCity">—</div>
+          <div class="loc-coords" id="locCoords">—</div>
+          <div class="loc-landmark" id="locLandmark" style="display:none">
+            <i class="fas fa-map-marker-alt" style="color:#e74c3c;font-size:11px"></i>
+            <span id="locLandmarkText"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         SECTION 3 — ISSUE DETAILS
+    ══════════════════════════════════════ -->
+    <div class="sec">
+      <div class="sec-hdr">
+        <div class="sec-num">3</div>
+        <div><h2>Issue Details</h2><p>What did you see?</p></div>
+      </div>
+      <div class="sec-body">
+        <div class="field">
+          <label>Type of issue</label>
+          <div class="issue-chips">
+            <div class="chip" data-val="Pothole / Road Damage" onclick="selectChip(this)">🕳️ Pothole</div>
+            <div class="chip" data-val="Debris / Litter" onclick="selectChip(this)">🗑️ Debris</div>
+            <div class="chip" data-val="Fallen Tree / Branch" onclick="selectChip(this)">🌳 Fallen Tree</div>
+            <div class="chip" data-val="Dead Animal" onclick="selectChip(this)">⚠️ Dead Animal</div>
+            <div class="chip" data-val="Damaged Sign / Signal" onclick="selectChip(this)">🚧 Damaged Sign</div>
+            <div class="chip" data-val="Flooded Road" onclick="selectChip(this)">🌊 Flooding</div>
+            <div class="chip" data-val="Broken Guardrail" onclick="selectChip(this)">🛡️ Guardrail</div>
+            <div class="chip" data-val="Other" onclick="selectChip(this)">➕ Other</div>
+          </div>
+        </div>
+        <div class="field" style="margin-top:16px">
+          <label>Severity</label>
+          <div class="sev-grid">
+            <div class="sev-opt" data-sev="low" onclick="selectSev(this)">
+              <span class="sev-icon">🟡</span><div class="sev-name">Low</div>
+            </div>
+            <div class="sev-opt selected" data-sev="medium" onclick="selectSev(this)">
+              <span class="sev-icon">🟠</span><div class="sev-name">Medium</div>
+            </div>
+            <div class="sev-opt" data-sev="high" onclick="selectSev(this)">
+              <span class="sev-icon">🔴</span><div class="sev-name">High</div>
+            </div>
+            <div class="sev-opt" data-sev="critical" onclick="selectSev(this)">
+              <span class="sev-icon">🚨</span><div class="sev-name">Critical</div>
+            </div>
+          </div>
+        </div>
+        <div class="field" style="margin-top:16px">
+          <label>Describe the issue <span style="color:#e74c3c">*</span></label>
+          <textarea name="description" id="f_desc" placeholder="E.g. Large pothole blocking right lane, about 3 feet wide…" required minlength="10"></textarea>
+          <div class="hint">Be specific — size, lane affected, hazard level</div>
+        </div>
+        <div class="field">
+          <label>Your email <span style="color:#bbb;font-weight:400;text-transform:none;font-size:11px">(optional, for follow-up)</span></label>
+          <input type="email" name="reporterEmail" placeholder="your@email.com" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         SECTION 4 — RECIPIENT
+    ══════════════════════════════════════ -->
+    <div class="sec">
+      <div class="sec-hdr">
+        <div class="sec-num">4</div>
+        <div><h2>Send To</h2><p>Select the right department</p></div>
+      </div>
+      <div class="sec-body">
+        <div class="recipient-list">
+          @foreach (var r in recipients)
+          {
+            var badgeClass = r.Type == "both" ? "both" : r.Type;
+            var badgeLabel = r.Type == "both" ? "Email + SMS" : r.Type.ToUpper();
+            <div class="recipient-card" data-val="@r.Value" data-type="@r.Type" data-email="@r.Email" data-phone="@(r.Phone ?? "")" onclick="selectRecipient(this)">
+              <div class="rc-icon" style="background:@r.Color"><i class="fas @r.Icon"></i></div>
+              <div class="rc-info">
+                <div class="rc-name">@r.Label</div>
+                <div class="rc-contact">
+                  @if (!string.IsNullOrEmpty(r.Email)) { <span><i class="fas fa-envelope" style="color:#4285F4"></i> @r.Email</span> }
+                  @if (!string.IsNullOrEmpty(r.Phone)) { <span><i class="fas fa-phone" style="color:#27ae60"></i> @r.Phone</span> }
+                </div>
+              </div>
+              <span class="rc-badge @badgeClass">@badgeLabel</span>
+              <div class="rc-check"><i class="fas fa-check" style="font-size:10px"></i></div>
+            </div>
+          }
+        </div>
+
+        <div id="notifySection" style="display:none;margin-top:16px">
+          <div class="field">
+            <label>How to notify</label>
+            <div class="notify-toggle">
+              <div class="notify-opt active" id="no-email" onclick="selectNotify('email')">
+                <i class="fas fa-envelope"></i><span>Email</span>
+              </div>
+              <div class="notify-opt" id="no-sms" onclick="selectNotify('sms')">
+                <i class="fas fa-comment-sms"></i><span>SMS</span>
+              </div>
+              <div class="notify-opt" id="no-both" onclick="selectNotify('both')">
+                <i class="fas fa-paper-plane"></i><span>Both</span>
+              </div>
+            </div>
+          </div>
+          <div style="background:#f0faf5;border-radius:10px;padding:12px 14px;font-size:12px;color:#2e7d32">
+            <i class="fas fa-info-circle"></i>
+            Test copy always sent to <strong>daluvalamvc@gmail.com</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </form>
+
+  <!-- FIXED SUBMIT -->
+  <div class="submit-bar">
+    <div class="submit-inner">
+      <div class="submit-note" id="submitNote">Fill in photo, issue details &amp; select a department to continue.</div>
+      <button type="button" class="btn-review" id="reviewBtn" disabled onclick="submitToReview()">
+        <i class="fas fa-eye"></i> Review &amp; Send
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+@section Scripts {
+<script>
+var lat=0, lng=0, locReady=false, photoReady=false, deptReady=false;
+var mapsKey='@mapsKey';
+
+// ── LOCATION ─────────────────────────────────────────
+function startLocation(){
+  if(!navigator.geolocation){ setLocError('GPS not available'); return; }
+  navigator.geolocation.getCurrentPosition(onLoc, onLocErr, {enableHighAccuracy:true,timeout:12000,maximumAge:0});
+}
+
+function onLoc(p){
+  lat=p.coords.latitude; lng=p.coords.longitude;
+  document.getElementById('f_lat').value=lat;
+  document.getElementById('f_lng').value=lng;
+  document.getElementById('locCoords').textContent=lat.toFixed(6)+', '+lng.toFixed(6);
+  setLocStatus('active','Location acquired');
+  if(mapsKey && mapsKey.length>10) reverseGeocode(lat,lng);
+  else {
+    document.getElementById('locAddress').textContent='Coordinates: '+lat.toFixed(5)+', '+lng.toFixed(5);
+    document.getElementById('locCity').textContent='(Add Google Maps API key for full address)';
+    locReady=true; checkReady();
+  }
+}
+
+function onLocErr(e){ setLocError('Could not get location — '+e.message); }
+function setLocError(msg){ setLocStatus('error',msg); document.getElementById('locAddress').textContent='Location unavailable'; }
+
+function setLocStatus(state,msg){
+  var d=document.getElementById('locDot');
+  d.className='loc-dot'+(state==='active'?' ':' waiting '+state);
+  document.getElementById('locStatusText').textContent=msg;
+}
+
+function reverseGeocode(la,lo){
+  var url='https://maps.googleapis.com/maps/api/geocode/json?latlng='+la+','+lo+'&key='+mapsKey;
+  fetch(url).then(r=>r.json()).then(data=>{
+    if(data.status==='OK'&&data.results[0]){
+      var res=data.results[0];
+      var addr=res.formatted_address;
+      var city='',state='',zip='';
+      res.address_components.forEach(c=>{
+        if(c.types.includes('locality')) city=c.long_name;
+        if(c.types.includes('administrative_area_level_1')) state=c.short_name;
+        if(c.types.includes('postal_code')) zip=c.long_name;
+      });
+      document.getElementById('f_addr').value=addr;
+      document.getElementById('f_city').value=city;
+      document.getElementById('f_state').value=state;
+      document.getElementById('f_zip').value=zip;
+      document.getElementById('locAddress').textContent=addr;
+      document.getElementById('locCity').textContent=[city,state,zip].filter(Boolean).join(', ');
+      findLandmark(la,lo);
+      locReady=true; checkReady();
+    }
+  }).catch(()=>{ locReady=true; checkReady(); });
+}
+
+function findLandmark(la,lo){
+  var url='https://maps.googleapis.com/maps/api/place/nearbysearch/json?location='+la+','+lo+'&radius=300&type=establishment&key='+mapsKey;
+  fetch(url).then(r=>r.json()).then(d=>{
+    if(d.status==='OK'&&d.results&&d.results.length>0){
+      var lmk=d.results[0].name;
+      document.getElementById('f_lmk').value=lmk;
+      document.getElementById('locLandmarkText').textContent='Near: '+lmk;
+      document.getElementById('locLandmark').style.display='flex';
+    }
+  }).catch(()=>{});
+}
+
+function refreshLocation(){
+  var icon=document.getElementById('refreshIcon');
+  icon.style.animation='spin .7s linear infinite';
+  setLocStatus('waiting','Refreshing…');
+  locReady=false; checkReady();
+  navigator.geolocation.getCurrentPosition(function(p){
+    icon.style.animation='';
+    onLoc(p);
+    showToast('📍 Location updated');
+  }, function(e){
+    icon.style.animation='';
+    setLocError(e.message);
+  }, {enableHighAccuracy:true,timeout:10000});
+}
+
+// ── PHOTO ─────────────────────────────────────────────
+function triggerCamera(){
+  var inp=document.getElementById('photoInput');
+  inp.setAttribute('capture','environment');
+  inp.click();
+}
+function triggerGallery(){ document.getElementById('galleryInput').click(); }
+
+function onPhotoSelected(inp){
+  if(inp.files&&inp.files[0]) showPhoto(inp.files[0]);
+}
+function onGallerySelected(inp){
+  if(inp.files&&inp.files[0]){
+    // copy file to main photoInput
+    var dt=new DataTransfer();
+    dt.items.add(inp.files[0]);
+    document.getElementById('photoInput').files=dt.files;
+    showPhoto(inp.files[0]);
+  }
+}
+
+function showPhoto(file){
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var img=document.getElementById('photoPreview');
+    img.src=e.target.result;
+    img.style.display='block';
+    document.querySelector('.cam-icon').style.display='none';
+    document.querySelector('.cam-text').style.display='none';
+    document.querySelector('.cam-hint').style.display='none';
+    var ps=document.getElementById('photoStatus');
+    ps.style.display='block';
+    document.getElementById('photoStatusText').textContent='📷 '+file.name+' ('+Math.round(file.size/1024)+'KB)';
+    photoReady=true; checkReady();
+    showToast('✅ Photo captured');
+    updateStepPips();
+  };
+  reader.readAsDataURL(file);
+}
+
+function retakePhoto(){
+  document.getElementById('photoInput').value='';
+  document.getElementById('photoPreview').style.display='none';
+  document.getElementById('photoPreview').src='';
+  document.querySelector('.cam-icon').style.display='';
+  document.querySelector('.cam-text').style.display='';
+  document.querySelector('.cam-hint').style.display='';
+  document.getElementById('photoStatus').style.display='none';
+  photoReady=false; checkReady(); updateStepPips();
+}
+
+// ── ISSUE TYPE / SEVERITY ──────────────────────────────
+function selectChip(el){
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('f_issuetype').value=el.dataset.val;
+  checkReady();
+}
+
+function selectSev(el){
+  document.querySelectorAll('.sev-opt').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('f_severity').value=el.dataset.sev;
+}
+
+// ── RECIPIENT ──────────────────────────────────────────
+function selectRecipient(el){
+  document.querySelectorAll('.recipient-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('f_dept').value=el.dataset.val;
+  var type=el.dataset.type;
+  document.getElementById('f_notify').value=type==='both'?'both':type;
+  // show notify toggle only if both is available
+  document.getElementById('notifySection').style.display='block';
+  if(type==='email'){ selectNotify('email'); document.getElementById('no-sms').style.display='none'; document.getElementById('no-both').style.display='none'; }
+  else if(type==='sms'){ selectNotify('sms'); document.getElementById('no-email').style.display='none'; document.getElementById('no-both').style.display='none'; }
+  else { document.getElementById('no-email').style.display=''; document.getElementById('no-sms').style.display=''; document.getElementById('no-both').style.display=''; selectNotify('both'); }
+  deptReady=true; checkReady(); updateStepPips();
+}
+
+function selectNotify(v){
+  ['email','sms','both'].forEach(t=>document.getElementById('no-'+t).classList.toggle('active',t===v));
+  document.getElementById('f_notify').value=v;
+}
+
+// ── VALIDATION + SUBMIT ───────────────────────────────
+function checkReady(){
+  var desc=(document.getElementById('f_desc').value||'').trim();
+  var ok=photoReady && locReady && desc.length>=5 && deptReady;
+  document.getElementById('reviewBtn').disabled=!ok;
+  var notes=[];
+  if(!photoReady) notes.push('add a photo');
+  if(!locReady)   notes.push('wait for GPS');
+  if(desc.length<5) notes.push('describe the issue');
+  if(!deptReady)  notes.push('select a department');
+  document.getElementById('submitNote').textContent = ok
+    ? '✅ Ready — tap Review & Send'
+    : 'Still needed: '+notes.join(', ')+'.';
+}
+
+function submitToReview(){
+  var desc=(document.getElementById('f_desc').value||'').trim();
+  if(!desc){ showToast('⚠️ Please describe the issue'); return; }
+  if(lat===0){ showToast('⚠️ Location not ready'); return; }
+  document.getElementById('reportForm').submit();
+}
+
+function updateStepPips(){
+  mark('pip1','line12', photoReady);
+  mark('pip2','line23', locReady);
+  mark('pip3','line34', deptReady);
+}
+function mark(pip,line,done){
+  var p=document.getElementById(pip), l=document.getElementById(line);
+  if(done){ p.classList.remove('active'); p.classList.add('done'); if(l)l.classList.add('done'); }
+}
+
+// ── TOAST ─────────────────────────────────────────────
+function showToast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+document.getElementById('f_desc').addEventListener('input', checkReady);
+
+// Start on load
+window.addEventListener('load', function(){
+  startLocation();
+  checkReady();
+});
+</script>
+}

@@ -1,0 +1,298 @@
+@model fyihelphere.Models.ReportViewModel
+@{
+    ViewData["Title"] = "Review & Send";
+    var r = Model.Report;
+    var sel = Model.SelectedRecipient;
+    var mapsKey = Model.GoogleMapsApiKey ?? "";
+    var sevEmoji = r.Severity switch { "critical"=>"🚨 CRITICAL","high"=>"🔴 HIGH","medium"=>"🟠 MEDIUM",_=>"🟡 LOW" };
+    var sevColor = r.Severity switch { "critical"=>"#c0392b","high"=>"#e74c3c","medium"=>"#e67e22",_=>"#f39c12" };
+}
+
+@section Styles {
+<style>
+.rv { max-width:520px; margin:0 auto; padding:0 0 100px; background:#f5f7fa; min-height:100vh; }
+
+/* HERO HEADER */
+.rv-hero { background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff; padding:28px 24px 24px; text-align:center; }
+.rv-hero .tag { background:rgba(255,255,255,.2); display:inline-block; padding:4px 14px; border-radius:20px; font-size:12px; font-weight:700; letter-spacing:.5px; margin-bottom:10px; }
+.rv-hero h1 { margin:0 0 6px; font-size:24px; font-weight:800; }
+.rv-hero p { margin:0; font-size:13px; opacity:.8; }
+
+/* SEV BANNER */
+.sev-banner { padding:10px 24px; font-size:14px; font-weight:700; text-align:center; color:#fff; }
+
+/* SECTION */
+.rv-sec { background:#fff; margin-bottom:8px; }
+.rv-sec-hdr { padding:16px 20px 0; border-bottom:1.5px solid #f5f5f5; display:flex; align-items:center; gap:10px; padding-bottom:12px; }
+.rv-sec-hdr .icon { width:32px; height:32px; border-radius:10px; background:#fff5f5; display:flex; align-items:center; justify-content:center; font-size:14px; color:#e74c3c; }
+.rv-sec-hdr h3 { margin:0; font-size:14px; font-weight:700; color:#222; }
+.rv-body { padding:16px 20px; }
+
+/* PHOTO */
+.photo-thumb { width:100%; border-radius:14px; overflow:hidden; aspect-ratio:4/3; position:relative; background:#111; }
+.photo-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+.photo-thumb .no-photo { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:#555; gap:8px; }
+.photo-thumb .no-photo i { font-size:36px; color:#555; }
+
+/* LOCATION PANEL */
+.loc-panel { background:#f8f9fa; border-radius:12px; padding:16px; }
+.loc-panel .addr { font-size:15px; font-weight:700; color:#222; margin-bottom:6px; line-height:1.3; }
+.loc-panel .city { font-size:13px; color:#888; margin-bottom:10px; }
+.loc-panel .coords-row { display:flex; gap:8px; flex-wrap:wrap; }
+.coords-badge { background:#e74c3c; color:#fff; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:700; font-family:monospace; }
+.landmark-badge { background:#e8f5e9; color:#2e7d32; border-radius:6px; padding:4px 10px; font-size:11px; font-weight:600; }
+.map-link { display:flex; align-items:center; gap:8px; color:#4285F4; font-size:13px; font-weight:600; text-decoration:none; margin-top:10px; }
+.map-link:hover { text-decoration:underline; }
+
+/* MAP PREVIEW */
+.map-preview { width:100%; height:180px; border-radius:12px; overflow:hidden; margin-top:12px; border:1.5px solid #e8e8e8; background:#e8ecf0; position:relative; }
+.map-preview iframe { width:100%; height:100%; border:none; display:block; }
+.map-preview-static { width:100%; height:100%; object-fit:cover; display:block; }
+
+/* INFO ROWS */
+.info-row { display:flex; justify-content:space-between; align-items:flex-start; padding:10px 0; border-bottom:1px solid #f5f5f5; }
+.info-row:last-child { border-bottom:none; }
+.info-label { font-size:12px; color:#aaa; font-weight:600; text-transform:uppercase; letter-spacing:.4px; flex-shrink:0; width:100px; }
+.info-val { font-size:14px; color:#222; font-weight:500; text-align:right; flex:1; line-height:1.4; }
+.info-val.desc { text-align:left; color:#444; font-style:italic; }
+
+/* RECIPIENT PREVIEW */
+.recip-card { border:2px solid @(sel?.Color ?? "#e74c3c"); border-radius:14px; padding:18px; background:#fff; }
+.recip-card .rc-top { display:flex; align-items:center; gap:14px; margin-bottom:14px; }
+.recip-card .rc-icon { width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:20px; color:#fff; background:@(sel?.Color ?? "#e74c3c"); flex-shrink:0; }
+.recip-card .rc-name { font-size:16px; font-weight:800; color:#222; }
+.recip-card .rc-tag { font-size:12px; color:#888; margin-top:2px; }
+.contact-row { display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:10px; margin-bottom:8px; font-size:14px; font-weight:500; }
+.contact-row:last-child { margin-bottom:0; }
+.contact-row.email-row { background:#e3f2fd; color:#1565c0; }
+.contact-row.sms-row { background:#e8f5e9; color:#2e7d32; }
+.contact-row i { width:18px; flex-shrink:0; }
+.what-gets-sent { background:#f8f9fa; border-radius:10px; padding:14px; margin-top:14px; }
+.what-gets-sent .label { font-size:11px; font-weight:700; color:#aaa; text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
+.sent-item { display:flex; align-items:center; gap:8px; font-size:13px; color:#555; margin-bottom:6px; }
+.sent-item:last-child { margin-bottom:0; }
+.sent-item i { color:#27ae60; width:16px; }
+
+/* TEST CC */
+.test-cc { background:#fff8e1; border:1.5px solid #ffe082; border-radius:10px; padding:12px 14px; font-size:12px; color:#856404; margin-top:10px; }
+
+/* SUBMIT BAR */
+.rv-submit { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:520px; background:#fff; border-top:1.5px solid #eee; padding:14px 20px; box-shadow:0 -4px 20px rgba(0,0,0,.1); z-index:30; display:flex; gap:12px; }
+.btn-back { background:#f0f0f0; color:#555; border:none; border-radius:12px; padding:14px 20px; font-size:14px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all .2s; }
+.btn-back:hover { background:#e5e5e5; }
+.btn-send { flex:1; background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff; border:none; border-radius:12px; padding:14px; font-size:16px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; box-shadow:0 4px 16px rgba(231,76,60,.4); transition:all .25s; }
+.btn-send:hover { box-shadow:0 6px 22px rgba(231,76,60,.55); transform:translateY(-1px); }
+.btn-send:disabled { opacity:.6; transform:none; }
+.sending-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:999; align-items:center; justify-content:center; flex-direction:column; gap:16px; }
+.sending-overlay.show { display:flex; }
+.spinner { width:60px; height:60px; border:4px solid rgba(255,255,255,.2); border-top-color:#fff; border-radius:50%; animation:spin .8s linear infinite; }
+.sending-overlay p { color:#fff; font-size:16px; font-weight:600; }
+@@keyframes spin { to{transform:rotate(360deg)} }
+</style>
+}
+
+<div class="rv">
+
+  <!-- HERO -->
+  <div class="rv-hero">
+    <div class="tag">📋 REVIEW BEFORE SENDING</div>
+    <h1>Confirm Your Report</h1>
+    <p>Check all details below — then tap Send Report</p>
+  </div>
+
+  <!-- SEVERITY BANNER -->
+  <div class="sev-banner" style="background:@sevColor">@sevEmoji — @(r.IssueType ?? "General Issue")</div>
+
+  <!-- PHOTO -->
+  <div class="rv-sec">
+    <div class="rv-sec-hdr">
+      <div class="icon"><i class="fas fa-camera"></i></div>
+      <h3>Photo Evidence</h3>
+    </div>
+    <div class="rv-body">
+      <div class="photo-thumb">
+        @if (!string.IsNullOrEmpty(r.PhotoBase64))
+        {
+          <img src="@r.PhotoBase64" alt="Issue photo" />
+        }
+        else if (!string.IsNullOrEmpty(r.PhotoPath))
+        {
+          <img src="@r.PhotoPath" alt="Issue photo" />
+        }
+        else
+        {
+          <div class="no-photo">
+            <i class="fas fa-image"></i>
+            <span style="font-size:13px;color:#888">No photo attached</span>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- LOCATION -->
+  <div class="rv-sec">
+    <div class="rv-sec-hdr">
+      <div class="icon"><i class="fas fa-map-pin"></i></div>
+      <h3>Location</h3>
+    </div>
+    <div class="rv-body">
+      <div class="loc-panel">
+        <div class="addr">@(r.Address ?? "Address not available")</div>
+        <div class="city">
+          @string.Join(", ", new[]{ r.City, r.State, r.ZipCode }.Where(x => !string.IsNullOrEmpty(x)))
+        </div>
+        <div class="coords-row">
+          <span class="coords-badge">@r.Latitude.ToString("F5"), @r.Longitude.ToString("F5")</span>
+          @if (!string.IsNullOrEmpty(r.NearbyLandmark))
+          {
+            <span class="landmark-badge"><i class="fas fa-landmark" style="margin-right:4px"></i>@r.NearbyLandmark</span>
+          }
+        </div>
+        <a class="map-link" href="https://www.google.com/maps?q=@r.Latitude,@r.Longitude" target="_blank">
+          <i class="fas fa-external-link-alt"></i> Open in Google Maps
+        </a>
+      </div>
+
+      @if (!string.IsNullOrEmpty(mapsKey))
+      {
+        <div class="map-preview">
+          <img class="map-preview-static"
+               src="https://maps.googleapis.com/maps/api/staticmap?center=@r.Latitude,@r.Longitude&zoom=16&size=480x180&maptype=roadmap&markers=color:red%7C@r.Latitude,@r.Longitude&key=@mapsKey"
+               alt="Map" />
+        </div>
+      }
+      else
+      {
+        <div class="map-preview" style="display:flex;align-items:center;justify-content:center;background:#e8ecf0">
+          <a href="https://www.google.com/maps?q=@r.Latitude,@r.Longitude" target="_blank" style="color:#4285F4;font-size:14px;font-weight:600;text-decoration:none">
+            <i class="fas fa-map" style="font-size:32px;display:block;text-align:center;margin-bottom:8px;color:#aaa"></i>
+            Tap to view on Google Maps
+          </a>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- ISSUE DETAILS -->
+  <div class="rv-sec">
+    <div class="rv-sec-hdr">
+      <div class="icon"><i class="fas fa-clipboard-list"></i></div>
+      <h3>Issue Details</h3>
+    </div>
+    <div class="rv-body">
+      <div class="info-row">
+        <span class="info-label">Type</span>
+        <span class="info-val">@(r.IssueType ?? "Not specified")</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Severity</span>
+        <span class="info-val">@sevEmoji</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Reported</span>
+        <span class="info-val">@r.ReportedAt.ToString("MMM dd, yyyy HH:mm") UTC</span>
+      </div>
+      @if (!string.IsNullOrEmpty(r.ReporterEmail))
+      {
+        <div class="info-row">
+          <span class="info-label">Your email</span>
+          <span class="info-val">@r.ReporterEmail</span>
+        </div>
+      }
+      <div class="info-row" style="border-bottom:none">
+        <span class="info-label">Description</span>
+        <span class="info-val" style="text-align:left;color:#444;line-height:1.5;font-style:italic">"@r.Description"</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECIPIENT PREVIEW -->
+  <div class="rv-sec">
+    <div class="rv-sec-hdr">
+      <div class="icon"><i class="fas fa-paper-plane"></i></div>
+      <h3>Sending To</h3>
+    </div>
+    <div class="rv-body">
+      @if (sel != null)
+      {
+        <div class="recip-card">
+          <div class="rc-top">
+            <div class="rc-icon"><i class="fas @sel.Icon"></i></div>
+            <div>
+              <div class="rc-name">@sel.Label</div>
+              <div class="rc-tag">@(sel.DeptShort) — @(sel.Type == "both" ? "Email + SMS" : sel.Type.ToUpper())</div>
+            </div>
+          </div>
+          @if (!string.IsNullOrEmpty(sel.Email))
+          {
+            <div class="contact-row email-row">
+              <i class="fas fa-envelope"></i> @sel.Email
+            </div>
+          }
+          @if (!string.IsNullOrEmpty(sel.Phone))
+          {
+            <div class="contact-row sms-row">
+              <i class="fas fa-phone"></i> @sel.Phone
+            </div>
+          }
+          <div class="what-gets-sent">
+            <div class="label">What gets sent</div>
+            <div class="sent-item"><i class="fas fa-check-circle"></i> GPS coordinates &amp; full address</div>
+            <div class="sent-item"><i class="fas fa-check-circle"></i> City, state &amp; nearby landmark</div>
+            @if (!string.IsNullOrEmpty(r.PhotoBase64) || !string.IsNullOrEmpty(r.PhotoPath))
+            {
+              <div class="sent-item"><i class="fas fa-check-circle"></i> Photo attached</div>
+            }
+            <div class="sent-item"><i class="fas fa-check-circle"></i> Issue type &amp; severity</div>
+            <div class="sent-item"><i class="fas fa-check-circle"></i> Your description</div>
+            <div class="sent-item"><i class="fas fa-check-circle"></i> Google Maps link</div>
+          </div>
+        </div>
+        <div class="test-cc">
+          <i class="fas fa-flask" style="color:#b07d00"></i>
+          <strong>Test copy</strong> also sent to daluvalamvc@gmail.com
+        </div>
+      }
+      else
+      {
+        <p style="color:#e74c3c">No recipient selected. <a href="/NeedCleanup">Go back</a></p>
+      }
+    </div>
+  </div>
+
+</div>
+
+<!-- SEND FORM (hidden) -->
+<form method="post" action="/NeedCleanup/Send" id="sendForm">
+  @Html.AntiForgeryToken()
+  <input type="hidden" name="recipientDepartment" value="@r.RecipientDepartment" />
+  <input type="hidden" name="notifyMethod" value="@r.NotifyMethod" />
+</form>
+
+<!-- FIXED SUBMIT -->
+<div class="rv-submit">
+  <button type="button" class="btn-back" onclick="window.history.back()">
+    <i class="fas fa-arrow-left"></i> Edit
+  </button>
+  <button type="button" class="btn-send" id="sendBtn" onclick="confirmSend()">
+    <i class="fas fa-paper-plane"></i> Send Report Now
+  </button>
+</div>
+
+<!-- SENDING OVERLAY -->
+<div class="sending-overlay" id="sendingOverlay">
+  <div class="spinner"></div>
+  <p>Sending your report…</p>
+  <p style="font-size:13px;opacity:.7">This may take a few seconds</p>
+</div>
+
+@section Scripts {
+<script>
+function confirmSend(){
+  document.getElementById('sendBtn').disabled=true;
+  document.getElementById('sendingOverlay').classList.add('show');
+  document.getElementById('sendForm').submit();
+}
+</script>
+}

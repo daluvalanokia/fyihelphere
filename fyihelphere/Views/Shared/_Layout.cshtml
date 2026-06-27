@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#e74c3c" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>@ViewData["Title"] — FYI Help Here</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <a href="/" class="brand-link">
+                <div class="brand-icon"><i class="fas fa-road"></i></div>
+                <div class="brand-text">
+                    <span class="brand-name">FYI Help Here</span>
+                    <span class="brand-tagline">Road Reporter</span>
+                </div>
+            </a>
+        </div>
+        <div class="navbar-actions">
+            @{
+                var ctrl = ViewContext.RouteData.Values["controller"]?.ToString();
+                var act  = ViewContext.RouteData.Values["action"]?.ToString();
+            }
+            @if (ctrl != "NeedCleanup" || act == "Confirmation")
+            {
+                <a href="/NeedCleanup" class="btn-report-now">
+                    <i class="fas fa-exclamation-circle"></i> Report Issue
+                </a>
+            }
+            @if (ctrl == "NeedCleanup" && act != "Confirmation")
+            {
+                <a href="/" class="btn-nav-back">
+                    <i class="fas fa-arrow-left"></i> Home
+                </a>
+            }
+        </div>
+    </nav>
+
+    <main>@RenderBody()</main>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

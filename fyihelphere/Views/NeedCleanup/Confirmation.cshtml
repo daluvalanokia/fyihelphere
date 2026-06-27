@@ -1,0 +1,137 @@
+@{
+    ViewData["Title"] = "Report Sent!";
+    var refNum  = ViewBag.RefNum as string;
+    var city    = ViewBag.City as string;
+    var dept    = ViewBag.Dept as string;
+    var lat     = ViewBag.Lat as double?;
+    var lng     = ViewBag.Lng as double?;
+    var address = ViewBag.Address as string;
+    var mapsKey = ViewBag.GoogleMapsApiKey as string ?? "";
+}
+
+@section Styles {
+<style>
+.conf { max-width:520px; margin:0 auto; padding:0 0 40px; text-align:center; background:#f5f7fa; min-height:100vh; }
+.conf-hero { background:linear-gradient(135deg,#27ae60,#1e8449); padding:48px 28px 36px; }
+.conf-check { width:88px; height:88px; background:rgba(255,255,255,.2); border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:40px; color:#fff; margin-bottom:20px; animation:pop .5s cubic-bezier(.36,1.5,.5,1); }
+@@keyframes pop { 0%{transform:scale(0)} 100%{transform:scale(1)} }
+.conf-hero h1 { color:#fff; font-size:28px; font-weight:900; margin:0 0 8px; }
+.conf-hero p { color:rgba(255,255,255,.8); font-size:15px; margin:0; }
+.ref-badge { background:rgba(255,255,255,.15); display:inline-block; padding:6px 18px; border-radius:20px; color:#fff; font-size:13px; font-weight:700; letter-spacing:.5px; margin-top:14px; font-family:monospace; }
+
+.conf-body { padding:0 16px; }
+.info-card { background:#fff; border-radius:16px; padding:20px; margin:16px 0 0; text-align:left; box-shadow:0 2px 12px rgba(0,0,0,.06); }
+.info-card h3 { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#aaa; margin:0 0 14px; }
+.info-row { display:flex; align-items:flex-start; gap:12px; padding:8px 0; border-bottom:1px solid #f5f5f5; }
+.info-row:last-child { border-bottom:none; }
+.info-row i { color:#e74c3c; width:18px; margin-top:2px; flex-shrink:0; }
+.info-row .lbl { font-size:11px; color:#aaa; font-weight:600; }
+.info-row .val { font-size:14px; color:#222; font-weight:600; }
+
+.map-card { background:#fff; border-radius:16px; overflow:hidden; margin:12px 0 0; box-shadow:0 2px 12px rgba(0,0,0,.06); }
+.map-card img { width:100%; height:180px; object-fit:cover; display:block; }
+.map-card-footer { padding:12px 16px; display:flex; align-items:center; justify-content:space-between; }
+.map-card-footer span { font-size:12px; color:#888; font-family:monospace; }
+.map-open { color:#4285F4; font-size:13px; font-weight:600; text-decoration:none; }
+.map-open:hover { text-decoration:underline; }
+
+.action-row { display:flex; gap:10px; margin:20px 0; }
+.action-btn { flex:1; border:none; border-radius:12px; padding:14px; font-size:14px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:all .2s; text-decoration:none; }
+.action-btn-primary { background:linear-gradient(135deg,#e74c3c,#c0392b); color:#fff; box-shadow:0 4px 14px rgba(231,76,60,.4); }
+.action-btn-primary:hover { color:#fff; }
+.action-btn-secondary { background:#f0f0f0; color:#555; }
+.action-btn-secondary:hover { background:#e5e5e5; color:#333; }
+.what-happened { background:#e8f5e9; border-radius:12px; padding:16px 18px; text-align:left; margin-top:12px; }
+.what-happened h4 { margin:0 0 10px; font-size:13px; font-weight:700; color:#1b5e20; }
+.what-happened ul { margin:0; padding:0 0 0 18px; }
+.what-happened li { font-size:13px; color:#2e7d32; margin-bottom:6px; line-height:1.4; }
+.what-happened li:last-child { margin-bottom:0; }
+</style>
+}
+
+<div class="conf">
+  <div class="conf-hero">
+    <div class="conf-check"><i class="fas fa-check"></i></div>
+    <h1>Report Sent!</h1>
+    <p>Your road maintenance request has been delivered</p>
+    @if (!string.IsNullOrEmpty(refNum))
+    {
+      <div class="ref-badge">Ref: @refNum</div>
+    }
+  </div>
+
+  <div class="conf-body">
+
+    <!-- WHAT HAPPENED -->
+    <div class="what-happened" style="margin-top:16px">
+      <h4>✅ Your report was sent with:</h4>
+      <ul>
+        <li>📍 GPS location, full address &amp; coordinates</li>
+        <li>📷 Photo of the issue</li>
+        <li>🏛️ Sent to: <strong>@(dept ?? "the department")</strong></li>
+        <li>🔬 Test copy delivered to daluvalamvc@gmail.com</li>
+        <li>🔖 Reference: <strong>@(refNum ?? "—")</strong></li>
+      </ul>
+    </div>
+
+    <!-- LOCATION DETAILS -->
+    <div class="info-card">
+      <h3>📍 Location Reported</h3>
+      @if (!string.IsNullOrEmpty(address))
+      {
+        <div class="info-row"><i class="fas fa-map-pin"></i><div><div class="lbl">Address</div><div class="val">@address</div></div></div>
+      }
+      @if (!string.IsNullOrEmpty(city))
+      {
+        <div class="info-row"><i class="fas fa-city"></i><div><div class="lbl">City</div><div class="val">@city</div></div></div>
+      }
+      @if (lat.HasValue && lng.HasValue)
+      {
+        <div class="info-row"><i class="fas fa-crosshairs"></i><div><div class="lbl">Coordinates</div><div class="val" style="font-family:monospace;font-size:13px">@lat.Value.ToString("F5"), @lng.Value.ToString("F5")</div></div></div>
+      }
+      @if (!string.IsNullOrEmpty(dept))
+      {
+        <div class="info-row"><i class="fas fa-building-government"></i><div><div class="lbl">Sent to</div><div class="val">@dept</div></div></div>
+      }
+    </div>
+
+    <!-- MAP -->
+    @if (lat.HasValue && lng.HasValue)
+    {
+      <div class="map-card">
+        @if (!string.IsNullOrEmpty(mapsKey))
+        {
+          <img src="https://maps.googleapis.com/maps/api/staticmap?center=@lat,@lng&zoom=16&size=520x180&maptype=roadmap&markers=color:red%7Clabel:!%7C@lat,@lng&key=@mapsKey" alt="Report location map" />
+        }
+        else
+        {
+          <div style="height:140px;background:#e8ecf0;display:flex;align-items:center;justify-content:center">
+            <i class="fas fa-map" style="font-size:36px;color:#bbb"></i>
+          </div>
+        }
+        <div class="map-card-footer">
+          <span>@lat.Value.ToString("F5"), @lng.Value.ToString("F5")</span>
+          <a class="map-open" href="https://www.google.com/maps?q=@lat,@lng" target="_blank">
+            <i class="fas fa-external-link-alt"></i> Open Maps
+          </a>
+        </div>
+      </div>
+    }
+
+    <!-- ACTIONS -->
+    <div class="action-row">
+      <a href="/NeedCleanup" class="action-btn action-btn-primary">
+        <i class="fas fa-plus"></i> Report Another
+      </a>
+      <a href="/" class="action-btn action-btn-secondary">
+        <i class="fas fa-home"></i> Home
+      </a>
+    </div>
+
+    <div style="font-size:12px;color:#ccc;text-align:center;padding:16px 0">
+      FYI Help Here · Road Maintenance Reporter<br>
+      Save your reference number: <strong style="color:#e74c3c">@(refNum ?? "—")</strong>
+    </div>
+
+  </div>
+</div>

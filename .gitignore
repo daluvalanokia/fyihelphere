@@ -1,0 +1,23 @@
+## .NET gitignore
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.csproj.user
+wwwroot/uploads/
+fyihelphere_publish/
+*.db
+*.sqlite
+appsettings.Development.json
+appsettings.Secrets.json
+*.pfx
+*.p12
+packages/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+**/__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
